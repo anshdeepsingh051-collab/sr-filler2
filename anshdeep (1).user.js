@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Static Response Expected Answer Auto-Fill
 // @namespace    http://tampermonkey.net/
-// @version      2.5
+// @version      2.6
 // @description  Two-step picker on "Inaccurate" radio click — fills Expected Response textarea
 // @match        https://orbit-beta.beta.harmony.a2z.com/*
 // @match        https://orbit-gamma.beta.harmony.a2z.com/*
@@ -343,25 +343,47 @@
     }
 
     // ═══════════════════════════════════════════════
-    // KEY FIX — EVENT DELEGATION
-    // Listen on document level so React re-renders
-    // never break the binding. No WeakSet needed.
+    // FIX #1 — PICKER BUSY FLAG
+    // Prevents picker reopening during 400ms fill delay
+    // ═══════════════════════════════════════════════
+
+    let pickerBusy = false;
+
+    function showPicker() {
+        pickerBusy = true;
+        overlay.style.display = 'block';
+        picker.style.display = 'block';
+        renderCategoryStep();
+    }
+
+    function hidePicker() {
+        overlay.style.display = 'none';
+        picker.style.display = 'none';
+        // FIX #1 — keep busy for 500ms after close
+        // so fill delay cannot reopen picker
+        setTimeout(() => { pickerBusy = false; }, 500);
+    }
+
+    // ═══════════════════════════════════════════════
+    // FIX #2 — TIGHTENED isInaccurateTarget
+    // Parent div check scoped to radio-related classes
+    // FIX #3 — DEBOUNCE increased to 2500ms
     // ═══════════════════════════════════════════════
 
     let lastTriggerTime = 0;
-    const DEBOUNCE_MS = 2000;
+    const DEBOUNCE_MS = 2500; // FIX #3 — was 2000ms
 
     function isInaccurateTarget(target) {
         if (!target) return false;
 
-        // Direct radio check
+        // Check 1 — direct radio click
         if (target.type === 'radio') {
             const val = (target.value || '').trim().toLowerCase();
             const id  = (target.id   || '').toLowerCase();
             if (val === 'inaccurate' || id.includes('inaccurate')) return true;
         }
 
-        // Click landed on label — find its radio
+        // Check 2 — click landed on label with for attribute
         if (target.tagName === 'LABEL') {
             const forId = target.htmlFor;
             if (forId) {
@@ -381,7 +403,7 @@
             }
         }
 
-        // Click landed on a span or div inside the label
+        // Check 3 — click landed on span or div inside label
         const parentLabel = target.closest('label');
         if (parentLabel) {
             const text = parentLabel.textContent.trim().toLowerCase();
@@ -395,10 +417,13 @@
             }
         }
 
-        // Click landed on parent div of radio (gamma fallback)
-        const parentDiv = target.closest('div');
-        if (parentDiv) {
-            const radio = parentDiv.querySelector('input[type="radio"]');
+        // FIX #2 — Check 4 scoped to radio-related class names only
+        // was target.closest('div') which was too broad
+        const radioDiv = target.closest(
+            '.radio-option, .radio-group, [class*="radio"], [class*="Radio"]'
+        );
+        if (radioDiv) {
+            const radio = radioDiv.querySelector('input[type="radio"]');
             if (radio) {
                 const val = (radio.value || '').trim().toLowerCase();
                 const id  = (radio.id   || '').toLowerCase();
@@ -415,8 +440,9 @@
             debugLog(`Debounced (${source})`);
             return;
         }
-        if (overlay.style.display === 'block') {
-            debugLog('Picker already open');
+        // FIX #1 — use pickerBusy flag instead of overlay display check
+        if (pickerBusy) {
+            debugLog('Picker busy — skipping');
             return;
         }
         lastTriggerTime = now;
@@ -426,32 +452,34 @@
         setTimeout(() => showPicker(), 350);
     }
 
-    // ── Document-level click (captures ALL clicks including
-    //    label clicks, div clicks, React synthetic events)
+    // ── Document-level click listener
+    // useCapture=true fires before React handlers
     document.addEventListener('click', function (e) {
-        if (overlay.style.display === 'block') return;
+        // FIX #1 — use pickerBusy instead of overlay display
+        if (pickerBusy) return;
         if (isInaccurateTarget(e.target)) {
-            debugLog(`Click hit: tag=${e.target.tagName} id="${e.target.id}"`);
+            debugLog(`Click: tag=${e.target.tagName} id="${e.target.id}"`);
             tryOpen('click');
         }
-    }, true); // useCapture=true — fires BEFORE React handlers
+    }, true);
 
-    // ── Document-level change (catches programmatic changes)
+    // ── Document-level change listener
     document.addEventListener('change', function (e) {
-        if (overlay.style.display === 'block') return;
+        // FIX #1 — use pickerBusy instead of overlay display
+        if (pickerBusy) return;
         const t = e.target;
         if (t.type === 'radio' && t.checked) {
             const val = (t.value || '').trim().toLowerCase();
             const id  = (t.id   || '').toLowerCase();
             if (val === 'inaccurate' || id.includes('inaccurate')) {
-                debugLog(`Change hit: id="${t.id}" value="${t.value}"`);
+                debugLog(`Change: id="${t.id}" value="${t.value}"`);
                 tryOpen('change');
             }
         }
-    }, true); // useCapture=true
+    }, true);
 
-    debugLog('v2.5 — Event delegation active on document');
-    badge.textContent = '🟢 SR Filler v2.5 Ready';
+    debugLog('v2.6 — Event delegation active');
+    badge.textContent = '🟢 SR Filler v2.6 Ready';
     setTimeout(() => { badge.textContent = '🟢 SR Filler Active'; }, 3000);
 
     // ═══════════════════════════════════════════════
@@ -484,7 +512,8 @@
 
         let html = `<h3>📋 Expected Response — Step 1 of 2</h3>`;
         html += `<div class="sr-step-label">Select a Response Category</div>`;
-        html += `<input type="text" class="sr-search" placeholder="🔍 Search categories..." />`;
+        html += `<input type="text" class="sr-search"
+                    placeholder="🔍 Search categories..." />`;
 
         categories.forEach(cat => {
             html += `
@@ -541,7 +570,8 @@
         let html = `<h3>📋 Expected Response — Step 2 of 2</h3>`;
         html += `<div class="sr-step-label">Select a Response</div>`;
         html += `<div class="sr-category-badge">📁 ${escapeHtml(category)}</div><br/>`;
-        html += `<input type="text" class="sr-search" placeholder="🔍 Search responses..." />`;
+        html += `<input type="text" class="sr-search"
+                    placeholder="🔍 Search responses..." />`;
 
         builtIn.forEach(resp => {
             html += `
@@ -557,7 +587,8 @@
             html += `<div class="sr-custom-divider">⭐ Custom Responses</div>`;
             custom.forEach(resp => {
                 html += `
-                    <div class="sr-opt-row" data-search="${escapeHtml(resp.toLowerCase())}">
+                    <div class="sr-opt-row"
+                        data-search="${escapeHtml(resp.toLowerCase())}">
                         <button class="sr-opt sr-opt-custom sr-resp-opt"
                             data-val="${encodeURIComponent(resp)}">
                             ⭐ ${escapeHtml(resp)}
@@ -571,7 +602,9 @@
 
         html += `
             <div class="sr-custom-section">
-                <div class="sr-custom-label">➕ Add Custom Response for "${escapeHtml(category)}"</div>
+                <div class="sr-custom-label">
+                    ➕ Add Custom Response for "${escapeHtml(category)}"
+                </div>
                 <textarea class="sr-custom-input"
                     placeholder="Type your custom expected response..."></textarea>
                 <div class="sr-hint">Tip: Press Ctrl+Enter to quickly add</div>
@@ -641,7 +674,10 @@
         if (addBtn) addBtn.addEventListener('click', addCustomResponse);
         if (customInput) {
             customInput.addEventListener('keydown', e => {
-                if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); addCustomResponse(); }
+                if (e.key === 'Enter' && e.ctrlKey) {
+                    e.preventDefault();
+                    addCustomResponse();
+                }
             });
         }
 
@@ -654,7 +690,7 @@
     }
 
     // ═══════════════════════════════════════════════
-    // STEP 2B — CUSTOM RESPONSE STEP
+    // STEP 2B — CUSTOM RESPONSE STEP (9th category)
     // ═══════════════════════════════════════════════
 
     function renderCustomResponseStep() {
@@ -667,10 +703,13 @@
         html += `
             <div class="sr-custom-label">✍️ Type Your Custom Response</div>
             <textarea class="sr-custom-input" id="sr-new-custom-input"
-                placeholder="Type the expected response you want to fill in..."></textarea>
+                placeholder="Type the expected response you want to fill in...">
+            </textarea>
             <div class="sr-hint">Tip: Ctrl+Enter to fill directly without saving</div>
             <div class="sr-add-row">
-                <button class="sr-add-btn" id="sr-fill-now-btn">✅ Fill Now</button>
+                <button class="sr-add-btn" id="sr-fill-now-btn">
+                    ✅ Fill Now
+                </button>
                 <button class="sr-add-btn" id="sr-save-fill-btn"
                     style="background:#0073bb;">
                     💾 Save &amp; Fill
@@ -678,13 +717,17 @@
             </div>`;
 
         if (savedCustoms.length > 0) {
-            html += `<div class="sr-custom-divider">💾 Previously Saved Custom Responses</div>`;
+            html += `
+                <div class="sr-custom-divider">
+                    💾 Previously Saved Custom Responses
+                </div>`;
             html += `<input type="text" class="sr-search" id="sr-saved-search"
                         placeholder="🔍 Search saved responses..."
                         style="margin-top:6px;" />`;
             savedCustoms.forEach(resp => {
                 html += `
-                    <div class="sr-opt-row" data-search="${escapeHtml(resp.toLowerCase())}">
+                    <div class="sr-opt-row"
+                        data-search="${escapeHtml(resp.toLowerCase())}">
                         <button class="sr-opt sr-opt-custom sr-saved-resp-opt"
                             data-val="${encodeURIComponent(resp)}">
                             ⭐ ${escapeHtml(resp)}
@@ -745,7 +788,10 @@
 
         if (newInput) {
             newInput.addEventListener('keydown', e => {
-                if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); fillNow(); }
+                if (e.key === 'Enter' && e.ctrlKey) {
+                    e.preventDefault();
+                    fillNow();
+                }
             });
         }
 
@@ -796,15 +842,20 @@
     }
 
     // ═══════════════════════════════════════════════
-    // FIND EXPECTED RESPONSE TEXTAREA
+    // FIX #4 — FIND EXPECTED RESPONSE TEXTAREA
+    // Added visibility check to avoid hidden fields
     // ═══════════════════════════════════════════════
 
     function findExpectedResponseField() {
+        // Try by placeholder — most reliable
         const byPlaceholder = document.querySelector(
             'textarea[placeholder*="expected response" i]'
         );
-        if (byPlaceholder) return byPlaceholder;
+        if (byPlaceholder && byPlaceholder.offsetParent !== null) {
+            return byPlaceholder;
+        }
 
+        // Try by label proximity
         const allEls = document.querySelectorAll(
             'label, span, p, div, h3, h4, h5, h6, legend'
         );
@@ -816,16 +867,23 @@
                 for (let i = 0; i < 6; i++) {
                     if (!parent) break;
                     const ta = parent.querySelector('textarea');
-                    if (ta) return ta;
+                    // FIX #4 — check visibility before returning
+                    if (ta && ta.offsetParent !== null) return ta;
                     parent = parent.parentElement;
                 }
             }
         }
 
+        // FIX #4 — fallback checks visibility before returning
         const allTextareas = document.querySelectorAll('textarea');
         for (const ta of allTextareas) {
             const ph = (ta.placeholder || '').toLowerCase();
-            if (ph.includes('expected') || ph.includes('response') || ph.includes('bot')) {
+            const isVisible = ta.offsetParent !== null;
+            if (isVisible && (
+                ph.includes('expected') ||
+                ph.includes('response') ||
+                ph.includes('bot')
+            )) {
                 return ta;
             }
         }
@@ -849,12 +907,12 @@
             const nativeSet = Object.getOwnPropertyDescriptor(proto, 'value').set;
 
             nativeSet.call(field, '');
-            field.dispatchEvent(new Event('input', { bubbles: true }));
+            field.dispatchEvent(new Event('input',  { bubbles: true }));
             field.dispatchEvent(new Event('change', { bubbles: true }));
 
             setTimeout(() => {
                 nativeSet.call(field, value);
-                field.dispatchEvent(new Event('input', { bubbles: true }));
+                field.dispatchEvent(new Event('input',  { bubbles: true }));
                 field.dispatchEvent(new Event('change', { bubbles: true }));
 
                 setTimeout(() => {
@@ -862,21 +920,6 @@
                 }, 200);
             }, 100);
         }, 100);
-    }
-
-    // ═══════════════════════════════════════════════
-    // SHOW / HIDE PICKER
-    // ═══════════════════════════════════════════════
-
-    function showPicker() {
-        overlay.style.display = 'block';
-        picker.style.display = 'block';
-        renderCategoryStep();
-    }
-
-    function hidePicker() {
-        overlay.style.display = 'none';
-        picker.style.display = 'none';
     }
 
     // ═══════════════════════════════════════════════
@@ -917,6 +960,6 @@
         }
     });
 
-    debugLog('SR Filler v2.5 loaded — event delegation active');
+    debugLog('SR Filler v2.6 loaded — all fixes applied');
 
 })();

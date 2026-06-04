@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Static Response Expected Answer Auto-Fill
 // @namespace    http://tampermonkey.net/
-// @version      2.2
+// @version      2.5
 // @description  Two-step picker on "Inaccurate" radio click — fills Expected Response textarea
 // @match        https://orbit-beta.beta.harmony.a2z.com/*
 // @match        https://orbit-gamma.beta.harmony.a2z.com/*
@@ -9,12 +9,11 @@
 // @grant        GM_addStyle
 // ==/UserScript==
 
-
 (function () {
     'use strict';
 
     // ═══════════════════════════════════════════════
-    // RESPONSE MAP — Category → Responses
+    // RESPONSE MAP
     // ═══════════════════════════════════════════════
 
     const RESPONSE_MAP = {
@@ -50,11 +49,10 @@
         ]
     };
 
-    // FIX #6 — Namespaced storage key to avoid collision
     const CUSTOM_CATEGORY_KEY = 'orbit_sr_v2_custom_responses';
 
     // ═══════════════════════════════════════════════
-    // FIX #2 — HTML escape helper to prevent injection
+    // HTML ESCAPE HELPER
     // ═══════════════════════════════════════════════
 
     function escapeHtml(str) {
@@ -265,6 +263,7 @@
             font-size: 12px; z-index: 99997;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
             font-family: Arial, sans-serif;
+            cursor: pointer;
         }
 
         .sr-confirm-overlay {
@@ -293,6 +292,18 @@
         .sr-confirm-yes:hover { background: #a82a10; }
         .sr-confirm-no  { background: #e8e8e8; color: #16191f; }
         .sr-confirm-no:hover { background: #d0d0d0; }
+
+        #sr-debug-panel {
+            position: fixed; bottom: 55px; right: 15px;
+            background: #1a1a2e; color: #0f0;
+            padding: 10px 14px; border-radius: 8px;
+            font-size: 11px; z-index: 99997;
+            font-family: monospace; max-width: 420px;
+            max-height: 200px; overflow-y: auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            display: none; white-space: pre-wrap;
+            word-break: break-all;
+        }
     `);
 
     // ═══════════════════════════════════════════════
@@ -302,7 +313,13 @@
     const badge = document.createElement('div');
     badge.id = 'sr-badge';
     badge.textContent = '🟢 SR Filler Active';
+    badge.title = 'Click to open picker manually';
+    badge.addEventListener('click', () => showPicker());
     document.body.appendChild(badge);
+
+    const debugPanel = document.createElement('div');
+    debugPanel.id = 'sr-debug-panel';
+    document.body.appendChild(debugPanel);
 
     const overlay = document.createElement('div');
     overlay.id = 'sr-overlay';
@@ -312,6 +329,130 @@
     const picker = document.createElement('div');
     picker.id = 'sr-picker';
     document.body.appendChild(picker);
+
+    // ═══════════════════════════════════════════════
+    // DEBUG LOGGER
+    // ═══════════════════════════════════════════════
+
+    let debugLines = [];
+    function debugLog(msg) {
+        debugLines.push(`[${new Date().toLocaleTimeString()}] ${msg}`);
+        if (debugLines.length > 30) debugLines.shift();
+        debugPanel.textContent = debugLines.join('\n');
+        debugPanel.scrollTop = debugPanel.scrollHeight;
+    }
+
+    // ═══════════════════════════════════════════════
+    // KEY FIX — EVENT DELEGATION
+    // Listen on document level so React re-renders
+    // never break the binding. No WeakSet needed.
+    // ═══════════════════════════════════════════════
+
+    let lastTriggerTime = 0;
+    const DEBOUNCE_MS = 2000;
+
+    function isInaccurateTarget(target) {
+        if (!target) return false;
+
+        // Direct radio check
+        if (target.type === 'radio') {
+            const val = (target.value || '').trim().toLowerCase();
+            const id  = (target.id   || '').toLowerCase();
+            if (val === 'inaccurate' || id.includes('inaccurate')) return true;
+        }
+
+        // Click landed on label — find its radio
+        if (target.tagName === 'LABEL') {
+            const forId = target.htmlFor;
+            if (forId) {
+                const radio = document.getElementById(forId);
+                if (radio) {
+                    const val = (radio.value || '').trim().toLowerCase();
+                    const id  = (radio.id   || '').toLowerCase();
+                    if (val === 'inaccurate' || id.includes('inaccurate')) return true;
+                }
+            }
+            // Label wraps the radio
+            const inner = target.querySelector('input[type="radio"]');
+            if (inner) {
+                const val = (inner.value || '').trim().toLowerCase();
+                const id  = (inner.id   || '').toLowerCase();
+                if (val === 'inaccurate' || id.includes('inaccurate')) return true;
+            }
+        }
+
+        // Click landed on a span or div inside the label
+        const parentLabel = target.closest('label');
+        if (parentLabel) {
+            const text = parentLabel.textContent.trim().toLowerCase();
+            if (text === 'inaccurate') return true;
+            if (parentLabel.htmlFor) {
+                const radio = document.getElementById(parentLabel.htmlFor);
+                if (radio) {
+                    const val = (radio.value || '').trim().toLowerCase();
+                    if (val === 'inaccurate') return true;
+                }
+            }
+        }
+
+        // Click landed on parent div of radio (gamma fallback)
+        const parentDiv = target.closest('div');
+        if (parentDiv) {
+            const radio = parentDiv.querySelector('input[type="radio"]');
+            if (radio) {
+                const val = (radio.value || '').trim().toLowerCase();
+                const id  = (radio.id   || '').toLowerCase();
+                if (val === 'inaccurate' || id.includes('inaccurate')) return true;
+            }
+        }
+
+        return false;
+    }
+
+    function tryOpen(source) {
+        const now = Date.now();
+        if (now - lastTriggerTime < DEBOUNCE_MS) {
+            debugLog(`Debounced (${source})`);
+            return;
+        }
+        if (overlay.style.display === 'block') {
+            debugLog('Picker already open');
+            return;
+        }
+        lastTriggerTime = now;
+        debugLog(`Opening picker (${source})`);
+        badge.textContent = '🟡 Inaccurate selected';
+        setTimeout(() => { badge.textContent = '🟢 SR Filler Active'; }, 3000);
+        setTimeout(() => showPicker(), 350);
+    }
+
+    // ── Document-level click (captures ALL clicks including
+    //    label clicks, div clicks, React synthetic events)
+    document.addEventListener('click', function (e) {
+        if (overlay.style.display === 'block') return;
+        if (isInaccurateTarget(e.target)) {
+            debugLog(`Click hit: tag=${e.target.tagName} id="${e.target.id}"`);
+            tryOpen('click');
+        }
+    }, true); // useCapture=true — fires BEFORE React handlers
+
+    // ── Document-level change (catches programmatic changes)
+    document.addEventListener('change', function (e) {
+        if (overlay.style.display === 'block') return;
+        const t = e.target;
+        if (t.type === 'radio' && t.checked) {
+            const val = (t.value || '').trim().toLowerCase();
+            const id  = (t.id   || '').toLowerCase();
+            if (val === 'inaccurate' || id.includes('inaccurate')) {
+                debugLog(`Change hit: id="${t.id}" value="${t.value}"`);
+                tryOpen('change');
+            }
+        }
+    }, true); // useCapture=true
+
+    debugLog('v2.5 — Event delegation active on document');
+    badge.textContent = '🟢 SR Filler v2.5 Ready';
+    setTimeout(() => { badge.textContent = '🟢 SR Filler Active'; }, 3000);
 
     // ═══════════════════════════════════════════════
     // DELETE CONFIRMATION
@@ -345,30 +486,25 @@
         html += `<div class="sr-step-label">Select a Response Category</div>`;
         html += `<input type="text" class="sr-search" placeholder="🔍 Search categories..." />`;
 
-        // Built-in 8 categories
-        // FIX #7 — count recalculated fresh on every render
-       categories.forEach(cat => {
-    html += `
-        <div class="sr-opt-row" data-search="${escapeHtml(cat.toLowerCase())}">
-            <button class="sr-opt sr-cat-opt" data-cat="${escapeHtml(cat)}">
-                📁 ${escapeHtml(cat)}
-            </button>
-        </div>`;
-});
+        categories.forEach(cat => {
+            html += `
+                <div class="sr-opt-row" data-search="${escapeHtml(cat.toLowerCase())}">
+                    <button class="sr-opt sr-cat-opt" data-cat="${escapeHtml(cat)}">
+                        📁 ${escapeHtml(cat)}
+                    </button>
+                </div>`;
+        });
 
-// 9th option — Custom Response
-html += `
-    <div class="sr-opt-row" data-search="custom response">
-        <button class="sr-opt sr-opt-ninth sr-custom-cat-opt">
-            ✏️ Custom Response
-        </button>
-    </div>`;
-
+        html += `
+            <div class="sr-opt-row" data-search="custom response">
+                <button class="sr-opt sr-opt-ninth sr-custom-cat-opt">
+                    ✏️ Custom Response
+                </button>
+            </div>`;
 
         html += `<button class="sr-cancel">✖ Cancel</button>`;
         picker.innerHTML = html;
 
-        // Search
         const searchBox = picker.querySelector('.sr-search');
         if (searchBox) {
             searchBox.addEventListener('input', function () {
@@ -379,20 +515,15 @@ html += `
             });
         }
 
-        // Built-in category click
         picker.querySelectorAll('.sr-cat-opt').forEach(btn => {
             btn.addEventListener('click', function () {
                 renderResponseStep(this.dataset.cat);
             });
         });
 
-        // 9th option click
         const ninthBtn = picker.querySelector('.sr-custom-cat-opt');
-        if (ninthBtn) {
-            ninthBtn.addEventListener('click', () => renderCustomResponseStep());
-        }
+        if (ninthBtn) ninthBtn.addEventListener('click', () => renderCustomResponseStep());
 
-        // FIX #9 — null guard on cancel button
         const cancelBtn = picker.querySelector('.sr-cancel');
         if (cancelBtn) cancelBtn.addEventListener('click', hidePicker);
 
@@ -412,7 +543,6 @@ html += `
         html += `<div class="sr-category-badge">📁 ${escapeHtml(category)}</div><br/>`;
         html += `<input type="text" class="sr-search" placeholder="🔍 Search responses..." />`;
 
-        // FIX #8 — removed unused idx parameter
         builtIn.forEach(resp => {
             html += `
                 <div class="sr-opt-row" data-search="${escapeHtml(resp.toLowerCase())}">
@@ -423,7 +553,6 @@ html += `
                 </div>`;
         });
 
-        // Custom responses for this category
         if (custom.length > 0) {
             html += `<div class="sr-custom-divider">⭐ Custom Responses</div>`;
             custom.forEach(resp => {
@@ -440,7 +569,6 @@ html += `
             });
         }
 
-        // Add custom for this category
         html += `
             <div class="sr-custom-section">
                 <div class="sr-custom-label">➕ Add Custom Response for "${escapeHtml(category)}"</div>
@@ -457,7 +585,6 @@ html += `
 
         picker.innerHTML = html;
 
-        // Search
         const searchBox = picker.querySelector('.sr-search');
         if (searchBox) {
             searchBox.addEventListener('input', function () {
@@ -468,7 +595,6 @@ html += `
             });
         }
 
-        // FIX #5 — find textarea BEFORE hiding picker
         picker.querySelectorAll('.sr-resp-opt').forEach(btn => {
             btn.addEventListener('click', function () {
                 const val = decodeURIComponent(this.dataset.val);
@@ -485,7 +611,6 @@ html += `
             });
         });
 
-        // Delete custom response
         picker.querySelectorAll('.sr-del-resp').forEach(btn => {
             btn.addEventListener('click', function (e) {
                 e.stopPropagation();
@@ -498,7 +623,6 @@ html += `
             });
         });
 
-        // Add custom response
         const customInput = picker.querySelector('.sr-custom-input');
         const addBtn = picker.querySelector('.sr-add-btn');
 
@@ -521,7 +645,6 @@ html += `
             });
         }
 
-        // FIX #9 — null guards on back and cancel
         const backBtn = picker.querySelector('.sr-back');
         const cancelBtn = picker.querySelector('.sr-cancel');
         if (backBtn) backBtn.addEventListener('click', renderCategoryStep);
@@ -531,7 +654,7 @@ html += `
     }
 
     // ═══════════════════════════════════════════════
-    // STEP 2B — CUSTOM RESPONSE STEP (9th category)
+    // STEP 2B — CUSTOM RESPONSE STEP
     // ═══════════════════════════════════════════════
 
     function renderCustomResponseStep() {
@@ -582,7 +705,6 @@ html += `
         const fillNowBtn = picker.querySelector('#sr-fill-now-btn');
         const saveFillBtn = picker.querySelector('#sr-save-fill-btn');
 
-        // FIX #5 — find textarea BEFORE hiding picker
         function fillNow() {
             const v = newInput ? newInput.value.trim() : '';
             if (!v) { showToast('⚠️ Please type a response first!'); return; }
@@ -598,7 +720,6 @@ html += `
             }, 400);
         }
 
-        // FIX #5 — find textarea BEFORE hiding picker
         function saveFill() {
             const v = newInput ? newInput.value.trim() : '';
             if (!v) { showToast('⚠️ Please type a response first!'); return; }
@@ -628,7 +749,6 @@ html += `
             });
         }
 
-        // Search saved responses
         const savedSearch = picker.querySelector('#sr-saved-search');
         if (savedSearch) {
             savedSearch.addEventListener('input', function () {
@@ -639,7 +759,6 @@ html += `
             });
         }
 
-        // FIX #5 — find textarea BEFORE hiding picker
         picker.querySelectorAll('.sr-saved-resp-opt').forEach(btn => {
             btn.addEventListener('click', function () {
                 const val = decodeURIComponent(this.dataset.val);
@@ -656,7 +775,6 @@ html += `
             });
         });
 
-        // Delete saved response
         picker.querySelectorAll('.sr-del-saved').forEach(btn => {
             btn.addEventListener('click', function (e) {
                 e.stopPropagation();
@@ -669,7 +787,6 @@ html += `
             });
         });
 
-        // FIX #9 — null guards on back and cancel
         const backBtn = picker.querySelector('.sr-back');
         const cancelBtn = picker.querySelector('.sr-cancel');
         if (backBtn) backBtn.addEventListener('click', renderCategoryStep);
@@ -683,13 +800,11 @@ html += `
     // ═══════════════════════════════════════════════
 
     function findExpectedResponseField() {
-        // Try by placeholder
         const byPlaceholder = document.querySelector(
             'textarea[placeholder*="expected response" i]'
         );
         if (byPlaceholder) return byPlaceholder;
 
-        // Try by label proximity
         const allEls = document.querySelectorAll(
             'label, span, p, div, h3, h4, h5, h6, legend'
         );
@@ -707,7 +822,6 @@ html += `
             }
         }
 
-        // Fallback — any visible textarea with relevant placeholder
         const allTextareas = document.querySelectorAll('textarea');
         for (const ta of allTextareas) {
             const ph = (ta.placeholder || '').toLowerCase();
@@ -720,7 +834,7 @@ html += `
     }
 
     // ═══════════════════════════════════════════════
-    // FIX #3 — SMART FILL — detects input vs textarea
+    // SMART FILL — React compatible
     // ═══════════════════════════════════════════════
 
     function smartFill(field, value) {
@@ -728,7 +842,6 @@ html += `
         field.click();
 
         setTimeout(() => {
-            // Detect correct prototype based on element type
             const proto = field.tagName === 'TEXTAREA'
                 ? window.HTMLTextAreaElement.prototype
                 : window.HTMLInputElement.prototype;
@@ -788,75 +901,6 @@ html += `
     }
 
     // ═══════════════════════════════════════════════
-    // FIND & BIND "INACCURATE" RADIO
-    // ═══════════════════════════════════════════════
-
-    const boundRadios = new WeakSet();
-    let lastTriggerTime = 0;
-    const DEBOUNCE_MS = 2000;
-
-    function findInaccurateRadio() {
-        // Try by value — exact and case-insensitive
-        const allRadios = document.querySelectorAll('input[type="radio"]');
-        for (const radio of allRadios) {
-            if (radio.value.toLowerCase() === 'inaccurate') return radio;
-        }
-
-        // Try by parent/label text
-        for (const radio of allRadios) {
-            const parent = radio.closest('label') || radio.parentElement;
-            if (parent && parent.textContent.trim().toLowerCase().includes('inaccurate')) {
-                return radio;
-            }
-        }
-
-        return null;
-    }
-
-    function bindInaccurateRadio(radio) {
-        if (boundRadios.has(radio)) return;
-        boundRadios.add(radio);
-
-        console.log('[SR] Bound Inaccurate radio:', radio);
-        badge.textContent = '🟢 SR Filler — Bound';
-        setTimeout(() => { badge.textContent = '🟢 SR Filler Active'; }, 2000);
-
-        function tryOpen() {
-            const now = Date.now();
-            if (now - lastTriggerTime < DEBOUNCE_MS) return;
-            if (overlay.style.display === 'block') return;
-            lastTriggerTime = now;
-            badge.textContent = '🟡 Inaccurate selected';
-            setTimeout(() => { badge.textContent = '🟢 SR Filler Active'; }, 3000);
-            setTimeout(() => showPicker(), 350);
-        }
-
-        // FIX #4 — only bind 'change' on the radio to prevent double-fire
-        radio.addEventListener('change', function () {
-            if (this.checked) tryOpen();
-        });
-
-        // Keep label click binding for Cloudscape UI compatibility
-        const label = radio.closest('label');
-        if (label) {
-            label.addEventListener('click', function (e) {
-                // FIX #4 — improved guard to prevent double-fire
-                if (e.target.type === 'radio') return;
-                setTimeout(() => { if (radio.checked) tryOpen(); }, 60);
-            });
-        }
-    }
-
-    function scanAndBind() {
-        const radio = findInaccurateRadio();
-        if (radio && !boundRadios.has(radio)) {
-            bindInaccurateRadio(radio);
-            return true;
-        }
-        return false;
-    }
-
-    // ═══════════════════════════════════════════════
     // KEYBOARD SHORTCUTS
     // ═══════════════════════════════════════════════
 
@@ -866,26 +910,13 @@ html += `
             showPicker();
         }
         if (e.key === 'Escape') hidePicker();
+        if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+            e.preventDefault();
+            debugPanel.style.display =
+                debugPanel.style.display === 'none' ? 'block' : 'none';
+        }
     });
 
-    // ═══════════════════════════════════════════════
-    // INIT — Scan + Observer + Interval
-    // ═══════════════════════════════════════════════
+    debugLog('SR Filler v2.5 loaded — event delegation active');
 
-    setTimeout(() => {
-        console.log('[SR] Initial scan...');
-        scanAndBind();
-    }, 2000);
-
-    let scanTimeout = null;
-    const observer = new MutationObserver(() => {
-        if (scanTimeout) clearTimeout(scanTimeout);
-        scanTimeout = setTimeout(() => scanAndBind(), 800);
-    });
-
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    setInterval(() => scanAndBind(), 5000);
-
-    console.log('[SR] Static Response Filler v2.1 loaded');
 })();

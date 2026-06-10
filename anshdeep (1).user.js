@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Static Response Expected Answer Auto-Fill
 // @namespace    http://tampermonkey.net/
-// @version      3.3
+// @version      3.5
 // @description  Three-step HVA Pills picker + two-step category picker on Inaccurate click
 // @match        https://orbit-beta.beta.harmony.a2z.com/*
 // @match        https://orbit-gamma.beta.harmony.a2z.com/*
@@ -63,7 +63,8 @@
             'What is Business Prime?': "Business Prime is an annual membership program for Amazon Business customers that offers business-specific benefits. It provides fast, free shipping on eligible items, access to spend visibility tools, and features to help control purchasing across your organization. Plans range from Duo (free for sole proprietors) to Enterprise, with benefits scaling based on your business size.",
             'Benefits': "Business Prime offers several key benefits: Fast, free shipping on eligible business items. Spend Visibility tools to analyze purchasing trends. Guided Buying to control employee purchasing. Access to member-only deals from partners like QuickBooks and CrowdStrike. Flexible payment terms (up to 60 days on higher-tier plans). Business Prime Rewards earning opportunities. Would you like to know more about specific Business Prime plans?",
             'How to sign up': "To sign up for Business Prime: Go to amazon.com/businessprime. Select 'Get started' button. Choose or add a payment method. Select to sign up for Business Prime. You can start with a free 30-day trial and choose a plan that fits your business size. New customers can create a free Amazon Business account first.",
-            'Manage Business Prime': "To manage your Prime Business membership, go to Business Settings and select Manage to change your payment method, view receipts, check membership status, or cancel. You can also change your plan if you have the necessary number of members. Would you like help with a specific management task like canceling or changing your plan?"
+            'Manage Business Prime': "To manage your Prime Business membership, go to Business Settings and select Manage to change your payment method, view receipts, check membership status, or cancel. You can also change your plan if you have the necessary number of members. Would you like help with a specific management task like canceling or changing your plan?",
+            'Business Prime Status': "To check your Business Prime membership status, go to Business Settings and select Manage. There you can view your membership status, change your payment method, or get a receipt. Would you like to know how to manage or cancel your Business Prime membership?"
         },
 
         'Pay By Invoice': {
@@ -120,7 +121,8 @@
         },
 
         'Business Settings': {
-            'Default checkout settings': "Checkout defaults help streamline your business purchasing by allowing you to set default shipping addresses and payment methods. As an administrator, you can set these defaults for your entire group or for yourself individually. Would you like to know more about setting up these defaults?"
+            'Default checkout settings': "Checkout defaults help streamline your business purchasing by allowing you to set default shipping addresses and payment methods. As an administrator, you can set these defaults for your entire group or for yourself individually. Would you like to know more about setting up these defaults?",
+            'Update business settings': "You can update your business settings through the Amazon Business app or website. Go to your account menu, select Business Settings, then manage options like checkout preferences, payment methods, billing and shipping addresses, delivery preferences, and team members. You can also set up buying policies and approvals. What specific settings would you like to update?"
         }
 
     };
@@ -298,8 +300,6 @@
             border-left-color: #0099a8;
         }
 
-        /* FIX #5 — renamed from sr-opt-tenth to sr-opt-custom-cat
-           for semantic clarity */
         #sr-picker .sr-opt-custom-cat {
             background: #fff8ee;
             border: 1.5px solid #FF9900;
@@ -592,6 +592,71 @@
     }
 
     // ═══════════════════════════════════════════════
+    // FIX — Defined at module level (not inside
+    // isInaccurateTarget) to avoid recreation on
+    // every page click event
+    // ═══════════════════════════════════════════════
+
+    function isResponseAccurateRadio(radio) {
+        if (!radio) return false;
+
+        const val  = (radio.value || '').trim().toLowerCase();
+        const name = (radio.name  || '').toLowerCase();
+        const id   = (radio.id    || '').toLowerCase();
+
+        // Must have value="Inaccurate"
+        if (val !== 'inaccurate') return false;
+
+        // BLOCK — Tool Invoked Accurate radio
+        // Gamma: name="tool-accurate", id="ta-inaccurate"
+        if (name === 'tool-accurate') return false;
+        if (id.startsWith('ta-')) return false;
+
+        // BLOCK — Context Switch Accurate radio
+        if (name.includes('context-switch') ||
+            name.includes('context_switch')) return false;
+        if (id.startsWith('csa-') || id.startsWith('cs-')) return false;
+
+        // BLOCK — Conversation Context Accurate radio
+        if (name.includes('conversation-context') ||
+            name.includes('conversation_context')) return false;
+        if (id.startsWith('cca-') || id.startsWith('cc-')) return false;
+
+        // ALLOW — Response Content Accurate radio
+        // Gamma: name="response-accurate", id="rca-inaccurate"
+        if (name === 'response-accurate') return true;
+        if (id.startsWith('rca-')) return true;
+
+        // FALLBACK — check parent form-section label text
+        // for both beta and gamma compatibility
+        const formSection = radio.closest('.form-section, [class*="form"]');
+        if (formSection) {
+            const sectionText = formSection.textContent.toLowerCase();
+            if (sectionText.includes('tool invoked')) return false;
+            if (sectionText.includes('context switch')) return false;
+            if (sectionText.includes('conversation context')) return false;
+            if (sectionText.includes('response content accurate')) return true;
+        }
+
+        // FALLBACK — check associated label text
+        const label = radio.id
+            ? document.querySelector(`label[for="${radio.id}"]`)
+            : radio.closest('label');
+        if (label) {
+            const section = label.closest('.form-section, [class*="form"]');
+            if (section) {
+                const sectionText = section.textContent.toLowerCase();
+                if (sectionText.includes('tool invoked')) return false;
+                if (sectionText.includes('context switch')) return false;
+                if (sectionText.includes('conversation context')) return false;
+                if (sectionText.includes('response content accurate')) return true;
+            }
+        }
+
+        return false;
+    }
+
+    // ═══════════════════════════════════════════════
     // EVENT DELEGATION
     // ═══════════════════════════════════════════════
 
@@ -601,53 +666,40 @@
     function isInaccurateTarget(target) {
         if (!target) return false;
 
+        // Check 1 — direct radio click
         if (target.type === 'radio') {
-            const val = (target.value || '').trim().toLowerCase();
-            const id  = (target.id   || '').toLowerCase();
-            if (val === 'inaccurate' || id.includes('inaccurate')) return true;
+            return isResponseAccurateRadio(target);
         }
 
+        // Check 2 — click landed on label with for attribute
         if (target.tagName === 'LABEL') {
             const forId = target.htmlFor;
             if (forId) {
                 const radio = document.getElementById(forId);
-                if (radio) {
-                    const val = (radio.value || '').trim().toLowerCase();
-                    const id  = (radio.id   || '').toLowerCase();
-                    if (val === 'inaccurate' || id.includes('inaccurate')) return true;
-                }
+                if (radio) return isResponseAccurateRadio(radio);
             }
             const inner = target.querySelector('input[type="radio"]');
-            if (inner) {
-                const val = (inner.value || '').trim().toLowerCase();
-                const id  = (inner.id   || '').toLowerCase();
-                if (val === 'inaccurate' || id.includes('inaccurate')) return true;
-            }
+            if (inner) return isResponseAccurateRadio(inner);
         }
 
+        // Check 3 — click landed on span or div inside label
         const parentLabel = target.closest('label');
         if (parentLabel) {
-            const text = parentLabel.textContent.trim().toLowerCase();
-            if (text === 'inaccurate') return true;
             if (parentLabel.htmlFor) {
                 const radio = document.getElementById(parentLabel.htmlFor);
-                if (radio) {
-                    const val = (radio.value || '').trim().toLowerCase();
-                    if (val === 'inaccurate') return true;
-                }
+                if (radio) return isResponseAccurateRadio(radio);
             }
+            const inner = parentLabel.querySelector('input[type="radio"]');
+            if (inner) return isResponseAccurateRadio(inner);
         }
 
+        // Check 4 — click landed on radio-option div
         const radioDiv = target.closest(
             '.radio-option, .radio-group, [class*="radio"], [class*="Radio"]'
         );
         if (radioDiv) {
             const radio = radioDiv.querySelector('input[type="radio"]');
-            if (radio) {
-                const val = (radio.value || '').trim().toLowerCase();
-                const id  = (radio.id   || '').toLowerCase();
-                if (val === 'inaccurate' || id.includes('inaccurate')) return true;
-            }
+            if (radio) return isResponseAccurateRadio(radio);
         }
 
         return false;
@@ -674,20 +726,20 @@
         if (pickerBusy) return;
         if (picker.contains(e.target)) return;
         if (isInaccurateTarget(e.target)) {
-            debugLog(`Click: tag=${e.target.tagName} id="${e.target.id}"`);
+            debugLog(`Click: tag=${e.target.tagName} id="${e.target.id}" name="${e.target.name || ''}"`);
             tryOpen('click');
         }
     }, true);
 
+    // FIX — change listener now uses isInaccurateTarget
+    // for consistent filtering across both click and change
     document.addEventListener('change', function (e) {
         if (pickerBusy) return;
         if (picker.contains(e.target)) return;
         const t = e.target;
         if (t.type === 'radio' && t.checked) {
-            const val = (t.value || '').trim().toLowerCase();
-            const id  = (t.id   || '').toLowerCase();
-            if (val === 'inaccurate' || id.includes('inaccurate')) {
-                debugLog(`Change: id="${t.id}" value="${t.value}"`);
+            if (isInaccurateTarget(t)) {
+                debugLog(`Change: id="${t.id}" name="${t.name}" value="${t.value}"`);
                 tryOpen('change');
             }
         }
@@ -770,7 +822,6 @@
             });
         }
 
-        // FIX #1 — decodeURIComponent when reading data-cat
         picker.querySelectorAll('.sr-cat-opt').forEach(btn => {
             btn.addEventListener('click', function () {
                 renderResponseStep(decodeURIComponent(this.dataset.cat));
@@ -793,7 +844,6 @@
 
     // ═══════════════════════════════════════════════
     // STEP 2 — HVA LIST PICKER
-    // FIX #1 — encodeURIComponent on data-hva
     // ═══════════════════════════════════════════════
 
     function renderHVAListStep() {
@@ -842,7 +892,6 @@
             });
         }
 
-        // FIX #1 — decodeURIComponent when reading data-hva
         picker.querySelectorAll('.sr-hva-name-btn').forEach(btn => {
             btn.addEventListener('click', function () {
                 renderHVAHeadingsStep(decodeURIComponent(this.dataset.hva));
@@ -859,15 +908,12 @@
 
     // ═══════════════════════════════════════════════
     // STEP 3 — HVA HEADINGS PICKER
-    // FIX #3 — empty state guard added
-    // FIX #6 — redundant br removed after hva name badge
     // ═══════════════════════════════════════════════
 
     function renderHVAHeadingsStep(hvaName) {
         const headings = HVA_PILLS_MAP[hvaName] || {};
         const headingKeys = Object.keys(headings);
 
-        // FIX #3 — guard against empty HVA
         if (headingKeys.length === 0) {
             showToast('⚠️ No headings found for this HVA!');
             renderHVAListStep();
@@ -1354,7 +1400,6 @@
         }
     });
 
-    // FIX #4 — clean debug log message
-    debugLog('SR Filler v3.3 loaded');
+    debugLog('SR Filler v3.5 loaded');
 
 })();

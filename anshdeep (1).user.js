@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Static Response Expected Answer Auto-Fill
 // @namespace    http://tampermonkey.net/
-// @version      3.1
+// @version      3.3
 // @description  Three-step HVA Pills picker + two-step category picker on Inaccurate click
 // @match        https://orbit-beta.beta.harmony.a2z.com/*
 // @match        https://orbit-gamma.beta.harmony.a2z.com/*
@@ -62,7 +62,8 @@
         'Business Prime': {
             'What is Business Prime?': "Business Prime is an annual membership program for Amazon Business customers that offers business-specific benefits. It provides fast, free shipping on eligible items, access to spend visibility tools, and features to help control purchasing across your organization. Plans range from Duo (free for sole proprietors) to Enterprise, with benefits scaling based on your business size.",
             'Benefits': "Business Prime offers several key benefits: Fast, free shipping on eligible business items. Spend Visibility tools to analyze purchasing trends. Guided Buying to control employee purchasing. Access to member-only deals from partners like QuickBooks and CrowdStrike. Flexible payment terms (up to 60 days on higher-tier plans). Business Prime Rewards earning opportunities. Would you like to know more about specific Business Prime plans?",
-            'How to sign up': "To sign up for Business Prime: Go to amazon.com/businessprime. Select 'Get started' button. Choose or add a payment method. Select to sign up for Business Prime. You can start with a free 30-day trial and choose a plan that fits your business size. New customers can create a free Amazon Business account first."
+            'How to sign up': "To sign up for Business Prime: Go to amazon.com/businessprime. Select 'Get started' button. Choose or add a payment method. Select to sign up for Business Prime. You can start with a free 30-day trial and choose a plan that fits your business size. New customers can create a free Amazon Business account first.",
+            'Manage Business Prime': "To manage your Prime Business membership, go to Business Settings and select Manage to change your payment method, view receipts, check membership status, or cancel. You can also change your plan if you have the necessary number of members. Would you like help with a specific management task like canceling or changing your plan?"
         },
 
         'Pay By Invoice': {
@@ -297,14 +298,16 @@
             border-left-color: #0099a8;
         }
 
-        #sr-picker .sr-opt-tenth {
+        /* FIX #5 — renamed from sr-opt-tenth to sr-opt-custom-cat
+           for semantic clarity */
+        #sr-picker .sr-opt-custom-cat {
             background: #fff8ee;
             border: 1.5px solid #FF9900;
             border-left: 5px solid #FF9900;
             color: #cc7a00; font-weight: bold;
         }
 
-        #sr-picker .sr-opt-tenth:hover {
+        #sr-picker .sr-opt-custom-cat:hover {
             background: #131921; color: #FF9900;
             border-color: #131921;
             border-left-color: #FF9900;
@@ -734,7 +737,7 @@
                 <div class="sr-opt-row"
                     data-search="${escapeHtml(cat.toLowerCase())}">
                     <button class="sr-opt sr-cat-opt"
-                        data-cat="${escapeHtml(cat)}">
+                        data-cat="${encodeURIComponent(cat)}">
                         📁 ${escapeHtml(cat)}
                     </button>
                 </div>`;
@@ -747,7 +750,7 @@
                 </button>
             </div>
             <div class="sr-opt-row" data-search="custom response">
-                <button class="sr-opt sr-opt-tenth sr-custom-cat-opt">
+                <button class="sr-opt sr-opt-custom-cat sr-custom-cat-opt">
                     ✏️ Custom Response
                 </button>
             </div>
@@ -767,9 +770,10 @@
             });
         }
 
+        // FIX #1 — decodeURIComponent when reading data-cat
         picker.querySelectorAll('.sr-cat-opt').forEach(btn => {
             btn.addEventListener('click', function () {
-                renderResponseStep(this.dataset.cat);
+                renderResponseStep(decodeURIComponent(this.dataset.cat));
             });
         });
 
@@ -789,7 +793,7 @@
 
     // ═══════════════════════════════════════════════
     // STEP 2 — HVA LIST PICKER
-    // FIX — heading counts removed from buttons
+    // FIX #1 — encodeURIComponent on data-hva
     // ═══════════════════════════════════════════════
 
     function renderHVAListStep() {
@@ -814,7 +818,7 @@
                 <div class="sr-opt-row"
                     data-search="${escapeHtml(hva.toLowerCase())}">
                     <button class="sr-opt sr-opt-hva-name sr-hva-name-btn"
-                        data-hva="${escapeHtml(hva)}">
+                        data-hva="${encodeURIComponent(hva)}">
                         🏷️ ${escapeHtml(hva)}
                     </button>
                 </div>`;
@@ -838,9 +842,10 @@
             });
         }
 
+        // FIX #1 — decodeURIComponent when reading data-hva
         picker.querySelectorAll('.sr-hva-name-btn').forEach(btn => {
             btn.addEventListener('click', function () {
-                renderHVAHeadingsStep(this.dataset.hva);
+                renderHVAHeadingsStep(decodeURIComponent(this.dataset.hva));
             });
         });
 
@@ -854,11 +859,20 @@
 
     // ═══════════════════════════════════════════════
     // STEP 3 — HVA HEADINGS PICKER
+    // FIX #3 — empty state guard added
+    // FIX #6 — redundant br removed after hva name badge
     // ═══════════════════════════════════════════════
 
     function renderHVAHeadingsStep(hvaName) {
         const headings = HVA_PILLS_MAP[hvaName] || {};
         const headingKeys = Object.keys(headings);
+
+        // FIX #3 — guard against empty HVA
+        if (headingKeys.length === 0) {
+            showToast('⚠️ No headings found for this HVA!');
+            renderHVAListStep();
+            return;
+        }
 
         let html = `
             <div class="sr-header">
@@ -873,7 +887,7 @@
                 </div>
                 <div class="sr-hva-name-badge">
                     🏷️ ${escapeHtml(hvaName)}
-                </div><br/>
+                </div>
                 <input type="text" class="sr-search"
                     placeholder="🔍 Search headings..." />`;
 
@@ -1203,7 +1217,6 @@
             });
         }
 
-        // FIX #1 — val not v in saved response click handler
         picker.querySelectorAll('.sr-saved-resp-opt').forEach(btn => {
             btn.addEventListener('click', function () {
                 const val = decodeURIComponent(this.dataset.val);
@@ -1341,6 +1354,7 @@
         }
     });
 
-    debugLog('SR Filler v3.1 loaded — heading counts removed, val bug fixed');
+    // FIX #4 — clean debug log message
+    debugLog('SR Filler v3.3 loaded');
 
 })();

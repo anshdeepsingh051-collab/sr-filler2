@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Static Response Expected Answer Auto-Fill
 // @namespace    http://tampermonkey.net/
-// @version      3.5
-// @description  Three-step HVA Pills picker + two-step category picker on Inaccurate click
+// @version      4.1
+// @description  HVA Pills picker + category picker + Tool Invocation picker
 // @match        https://orbit-beta.beta.harmony.a2z.com/*
 // @match        https://orbit-gamma.beta.harmony.a2z.com/*
+// @match        https://abc-mlops.beta.harmony.a2z.com/*
 // @run-at       document-idle
 // @grant        GM_addStyle
 // ==/UserScript==
@@ -130,6 +131,13 @@
     const CUSTOM_CATEGORY_KEY = 'orbit_sr_v2_custom_responses';
 
     // ═══════════════════════════════════════════════
+    // TOOL INVOCATION — Added in v4.0
+    // ═══════════════════════════════════════════════
+
+    const CUSTOM_TOOL_KEY         = 'v2_custom_tool_options';
+    const TOOL_INVOCATION_OPTIONS = ['search_amazon_business_knowledge_base', 'No'];
+
+    // ═══════════════════════════════════════════════
     // HTML ESCAPE HELPER
     // ═══════════════════════════════════════════════
 
@@ -166,7 +174,7 @@
     }
 
     // ═══════════════════════════════════════════════
-    // STYLES — Amazon Dark Theme
+    // STYLES — Amazon Dark Theme  (v3.5 unchanged)
     // ═══════════════════════════════════════════════
 
     GM_addStyle(`
@@ -207,9 +215,7 @@
             letter-spacing: 1.2px; margin: 0;
         }
 
-        #sr-picker .sr-body {
-            padding: 14px 20px 20px;
-        }
+        #sr-picker .sr-body { padding: 14px 20px 20px; }
 
         #sr-picker .sr-search {
             width: 100%; padding: 9px 14px;
@@ -245,20 +251,17 @@
 
         #sr-picker .sr-opt:hover {
             background: #131921; color: #FF9900;
-            border-left-color: #FF9900;
-            border-color: #131921;
+            border-left-color: #FF9900; border-color: #131921;
         }
 
         #sr-picker .sr-opt-custom {
             background: #fff8ee;
-            border-left-color: #FF9900;
-            border-color: #ffe0a0;
+            border-left-color: #FF9900; border-color: #ffe0a0;
         }
 
         #sr-picker .sr-opt-custom:hover {
             background: #131921; color: #FF9900;
-            border-color: #131921;
-            border-left-color: #FF9900;
+            border-color: #131921; border-left-color: #FF9900;
         }
 
         #sr-picker .sr-opt-hva {
@@ -270,8 +273,7 @@
 
         #sr-picker .sr-opt-hva:hover {
             background: #131921; color: #0099a8;
-            border-color: #131921;
-            border-left-color: #0099a8;
+            border-color: #131921; border-left-color: #0099a8;
         }
 
         #sr-picker .sr-opt-hva-name {
@@ -283,8 +285,7 @@
 
         #sr-picker .sr-opt-hva-name:hover {
             background: #131921; color: #0099a8;
-            border-color: #131921;
-            border-left-color: #0099a8;
+            border-color: #131921; border-left-color: #0099a8;
         }
 
         #sr-picker .sr-opt-pill {
@@ -296,8 +297,7 @@
 
         #sr-picker .sr-opt-pill:hover {
             background: #131921; color: #0099a8;
-            border-color: #131921;
-            border-left-color: #0099a8;
+            border-color: #131921; border-left-color: #0099a8;
         }
 
         #sr-picker .sr-opt-custom-cat {
@@ -309,8 +309,7 @@
 
         #sr-picker .sr-opt-custom-cat:hover {
             background: #131921; color: #FF9900;
-            border-color: #131921;
-            border-left-color: #FF9900;
+            border-color: #131921; border-left-color: #FF9900;
         }
 
         #sr-picker .sr-category-badge {
@@ -333,16 +332,14 @@
             display: inline-block;
             background: #e0f7fa; color: #007380;
             padding: 4px 14px; border-radius: 20px;
-            font-size: 12px; margin-bottom: 12px;
-            font-weight: bold;
+            font-size: 12px; margin-bottom: 12px; font-weight: bold;
         }
 
         #sr-picker .sr-category-badge-custom {
             display: inline-block;
             background: #fff8ee; color: #cc7a00;
             padding: 4px 14px; border-radius: 20px;
-            font-size: 12px; margin-bottom: 12px;
-            font-weight: bold;
+            font-size: 12px; margin-bottom: 12px; font-weight: bold;
         }
 
         #sr-picker .sr-del-btn {
@@ -369,8 +366,7 @@
             font-size: 11px; color: #999999;
             margin: 12px 0 6px; text-transform: uppercase;
             letter-spacing: 1px;
-            border-top: 1px dashed #e0e0e0;
-            padding-top: 10px;
+            border-top: 1px dashed #e0e0e0; padding-top: 10px;
         }
 
         #sr-picker textarea.sr-custom-input {
@@ -378,29 +374,24 @@
             border: 1.5px solid #dddddd;
             border-radius: 6px; font-size: 13px;
             box-sizing: border-box; resize: vertical;
-            min-height: 80px;
-            font-family: Arial, sans-serif;
-            line-height: 1.5; color: #131921;
-            background: #fafafa;
+            min-height: 80px; font-family: Arial, sans-serif;
+            line-height: 1.5; color: #131921; background: #fafafa;
         }
 
         #sr-picker textarea.sr-custom-input:focus {
-            outline: none; border-color: #FF9900;
-            background: #fff;
+            outline: none; border-color: #FF9900; background: #fff;
             box-shadow: 0 0 0 2px rgba(255,153,0,0.15);
         }
 
         #sr-picker .sr-add-row {
-            display: flex; gap: 8px;
-            align-items: flex-end; margin-top: 8px;
+            display: flex; gap: 8px; align-items: flex-end; margin-top: 8px;
         }
 
         #sr-picker .sr-add-btn {
             padding: 9px 20px; background: #FF9900;
             color: #131921; border: none; border-radius: 6px;
             cursor: pointer; font-size: 13px; font-weight: bold;
-            white-space: nowrap; flex-shrink: 0;
-            transition: background 0.15s;
+            white-space: nowrap; flex-shrink: 0; transition: background 0.15s;
         }
 
         #sr-picker .sr-add-btn:hover { background: #e68a00; }
@@ -414,9 +405,7 @@
             transition: background 0.15s, color 0.15s;
         }
 
-        #sr-picker .sr-save-btn:hover {
-            background: #FF9900; color: #131921;
-        }
+        #sr-picker .sr-save-btn:hover { background: #FF9900; color: #131921; }
 
         #sr-picker .sr-back {
             display: block; width: 100%;
@@ -429,8 +418,7 @@
         }
 
         #sr-picker .sr-back:hover {
-            background: #131921; color: #ffffff;
-            border-color: #131921;
+            background: #131921; color: #ffffff; border-color: #131921;
         }
 
         #sr-picker .sr-cancel {
@@ -439,34 +427,27 @@
             background: #131921; color: #ffffff;
             border: none; border-radius: 6px;
             cursor: pointer; font-size: 13px; font-weight: bold;
-            box-sizing: border-box;
-            transition: background 0.15s;
+            box-sizing: border-box; transition: background 0.15s;
         }
 
         #sr-picker .sr-cancel:hover { background: #000000; }
 
         .sr-hide { display: none !important; }
 
-        .sr-hint {
-            font-size: 11px; color: #999999;
-            margin-top: 5px; font-style: italic;
-        }
+        .sr-hint { font-size: 11px; color: #999999; margin-top: 5px; font-style: italic; }
 
         #sr-badge {
             position: fixed; bottom: 15px; right: 15px;
             background: #131921; color: #FF9900;
             padding: 8px 16px; border-radius: 20px;
-            font-size: 12px; font-weight: bold;
-            z-index: 99997;
+            font-size: 12px; font-weight: bold; z-index: 99997;
             box-shadow: 0 2px 10px rgba(0,0,0,0.4);
             font-family: Arial, sans-serif; cursor: pointer;
             border: 1.5px solid #FF9900;
             transition: background 0.15s, color 0.15s;
         }
 
-        #sr-badge:hover {
-            background: #FF9900; color: #131921;
-        }
+        #sr-badge:hover { background: #FF9900; color: #131921; }
 
         .sr-confirm-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -481,17 +462,10 @@
             text-align: center; border-top: 4px solid #FF9900;
         }
 
-        .sr-confirm-box h4 {
-            margin: 0 0 8px; color: #131921; font-size: 16px;
-        }
+        .sr-confirm-box h4 { margin: 0 0 8px; color: #131921; font-size: 16px; }
+        .sr-confirm-box p  { margin: 0 0 18px; font-size: 13px; color: #555555; }
 
-        .sr-confirm-box p {
-            margin: 0 0 18px; font-size: 13px; color: #555555;
-        }
-
-        .sr-confirm-btns {
-            display: flex; gap: 10px; justify-content: center;
-        }
+        .sr-confirm-btns { display: flex; gap: 10px; justify-content: center; }
 
         .sr-confirm-btns button {
             padding: 9px 26px; border: none; border-radius: 6px;
@@ -503,13 +477,10 @@
         .sr-confirm-yes:hover { background: #990000; }
 
         .sr-confirm-no {
-            background: #131921; color: #FF9900;
-            border: 1.5px solid #FF9900;
+            background: #131921; color: #FF9900; border: 1.5px solid #FF9900;
         }
 
-        .sr-confirm-no:hover {
-            background: #FF9900; color: #131921;
-        }
+        .sr-confirm-no:hover { background: #FF9900; color: #131921; }
 
         #sr-debug-panel {
             position: fixed; bottom: 55px; right: 15px;
@@ -520,8 +491,7 @@
             max-height: 200px; overflow-y: auto;
             box-shadow: 0 2px 10px rgba(0,0,0,0.5);
             display: none; white-space: pre-wrap;
-            word-break: break-all;
-            border: 1px solid #FF9900;
+            word-break: break-all; border: 1px solid #FF9900;
         }
 
         .sr-toast {
@@ -530,9 +500,159 @@
             padding: 10px 20px; border-radius: 8px;
             font-size: 13px; z-index: 100002;
             box-shadow: 0 4px 14px rgba(0,0,0,0.35);
-            font-family: Arial; border: 1px solid #FF9900;
-            font-weight: bold;
+            font-family: Arial; border: 1px solid #FF9900; font-weight: bold;
         }
+
+    `);
+
+    // ═══════════════════════════════════════════════
+    // TOOL PICKER STYLES — Added in v4.0
+    // ═══════════════════════════════════════════════
+
+    GM_addStyle(`
+
+        #sr-tool-picker {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: #ffffff; border: none;
+            border-radius: 12px; padding: 0;
+            z-index: 99999; display: none;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+            min-width: 480px; max-width: 560px;
+            max-height: 85vh; overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        #sr-tool-picker .srt-header {
+            background: #131921;
+            padding: 16px 20px 14px;
+            border-radius: 12px 12px 0 0;
+        }
+
+        #sr-tool-picker .srt-header h3 {
+            margin: 0 0 4px; font-size: 15px;
+            font-weight: bold; color: #FF9900; letter-spacing: 0.3px;
+        }
+
+        #sr-tool-picker .srt-subtitle {
+            font-size: 10px; color: #aaaaaa;
+            text-transform: uppercase; letter-spacing: 1.2px; margin: 0;
+        }
+
+        #sr-tool-picker .srt-body {
+            padding: 16px 20px 20px;
+            overflow-y: auto; max-height: calc(85vh - 72px);
+        }
+
+        #sr-tool-picker .srt-badge {
+            display: inline-block;
+            background: #131921; color: #FF9900;
+            padding: 4px 14px; border-radius: 20px;
+            font-size: 12px; margin-bottom: 14px;
+            font-weight: bold; letter-spacing: 0.3px;
+            border: 1px solid #FF9900;
+        }
+
+        #sr-tool-picker .srt-opt {
+            display: block; width: 100%;
+            padding: 11px 14px 11px 16px;
+            background: #f8f8f8;
+            border: 1px solid #e0e0e0;
+            border-left: 5px solid #FF9900;
+            border-radius: 6px; cursor: pointer;
+            text-align: left; font-size: 13px;
+            color: #131921; font-weight: 500;
+            margin-bottom: 8px; box-sizing: border-box;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        #sr-tool-picker .srt-opt:hover {
+            background: #131921; color: #FF9900;
+            border-left-color: #FF9900; border-color: #131921;
+        }
+
+        #sr-tool-picker .srt-opt-row {
+            display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+        }
+
+        #sr-tool-picker .srt-opt-row .srt-opt { margin-bottom: 0; flex: 1; }
+
+        #sr-tool-picker .srt-opt-custom {
+            background: #fff8ee;
+            border-left-color: #FF9900; border-color: #ffe0a0; color: #7a5000;
+        }
+
+        #sr-tool-picker .srt-opt-custom:hover {
+            background: #131921; color: #FF9900;
+            border-color: #131921; border-left-color: #FF9900;
+        }
+
+        #sr-tool-picker .srt-del-btn {
+            padding: 8px 10px; background: #cc0000;
+            color: #fff; border: none; border-radius: 6px;
+            cursor: pointer; font-size: 13px; font-weight: bold;
+            flex-shrink: 0; transition: background 0.15s;
+        }
+
+        #sr-tool-picker .srt-del-btn:hover { background: #990000; }
+
+        #sr-tool-picker .srt-divider {
+            font-size: 11px; color: #999999;
+            margin: 12px 0 8px; text-transform: uppercase;
+            letter-spacing: 1px;
+            border-top: 1px dashed #e0e0e0; padding-top: 10px;
+        }
+
+        #sr-tool-picker .srt-custom-section {
+            margin-top: 14px; padding-top: 14px; border-top: 1px dashed #dddddd;
+        }
+
+        #sr-tool-picker .srt-custom-label {
+            font-size: 12px; color: #FF9900; margin-bottom: 6px; font-weight: bold;
+        }
+
+        #sr-tool-picker .srt-custom-input {
+            width: 100%; padding: 9px 12px;
+            border: 1.5px solid #dddddd;
+            border-radius: 6px; font-size: 13px;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+            color: #131921; background: #fafafa;
+        }
+
+        #sr-tool-picker .srt-custom-input:focus {
+            outline: none; border-color: #FF9900; background: #fff;
+            box-shadow: 0 0 0 2px rgba(255,153,0,0.15);
+        }
+
+        #sr-tool-picker .srt-btn-row { display: flex; gap: 8px; margin-top: 8px; }
+
+        #sr-tool-picker .srt-add-btn {
+            flex: 1; padding: 9px 14px;
+            background: #FF9900; color: #131921;
+            border: none; border-radius: 6px;
+            cursor: pointer; font-size: 13px; font-weight: bold;
+            transition: background 0.15s;
+        }
+
+        #sr-tool-picker .srt-add-btn:hover { background: #e68a00; }
+
+        #sr-tool-picker .srt-save-btn {
+            background: #131921; color: #FF9900; border: 1.5px solid #FF9900;
+        }
+
+        #sr-tool-picker .srt-save-btn:hover { background: #FF9900; color: #131921; }
+
+        #sr-tool-picker .srt-cancel {
+            display: block; width: 100%;
+            padding: 10px 12px; margin-top: 12px;
+            background: #131921; color: #ffffff;
+            border: none; border-radius: 6px;
+            cursor: pointer; font-size: 13px; font-weight: bold;
+            box-sizing: border-box; transition: background 0.15s;
+        }
+
+        #sr-tool-picker .srt-cancel:hover { background: #000000; }
 
     `);
 
@@ -560,6 +680,11 @@
     picker.id = 'sr-picker';
     document.body.appendChild(picker);
 
+    // Tool picker — Added in v4.0
+    const toolPicker = document.createElement('div');
+    toolPicker.id = 'sr-tool-picker';
+    document.body.appendChild(toolPicker);
+
     // ═══════════════════════════════════════════════
     // DEBUG LOGGER
     // ═══════════════════════════════════════════════
@@ -585,16 +710,24 @@
         renderCategoryStep();
     }
 
+    // hidePicker now closes both pickers — modified in v4.0
     function hidePicker() {
-        overlay.style.display = 'none';
-        picker.style.display = 'none';
+        overlay.style.display    = 'none';
+        picker.style.display     = 'none';
+        toolPicker.style.display = 'none';
         setTimeout(() => { pickerBusy = false; }, 500);
     }
 
+    // Show tool picker — Added in v4.0
+    function showToolPicker() {
+        pickerBusy = true;
+        overlay.style.display    = 'block';
+        toolPicker.style.display = 'block';
+        renderToolInvocationStep();
+    }
+
     // ═══════════════════════════════════════════════
-    // FIX — Defined at module level (not inside
-    // isInaccurateTarget) to avoid recreation on
-    // every page click event
+    // RADIO DETECTION — v3.5 unchanged
     // ═══════════════════════════════════════════════
 
     function isResponseAccurateRadio(radio) {
@@ -604,31 +737,22 @@
         const name = (radio.name  || '').toLowerCase();
         const id   = (radio.id    || '').toLowerCase();
 
-        // Must have value="Inaccurate"
         if (val !== 'inaccurate') return false;
 
-        // BLOCK — Tool Invoked Accurate radio
-        // Gamma: name="tool-accurate", id="ta-inaccurate"
         if (name === 'tool-accurate') return false;
         if (id.startsWith('ta-')) return false;
 
-        // BLOCK — Context Switch Accurate radio
         if (name.includes('context-switch') ||
             name.includes('context_switch')) return false;
         if (id.startsWith('csa-') || id.startsWith('cs-')) return false;
 
-        // BLOCK — Conversation Context Accurate radio
         if (name.includes('conversation-context') ||
             name.includes('conversation_context')) return false;
         if (id.startsWith('cca-') || id.startsWith('cc-')) return false;
 
-        // ALLOW — Response Content Accurate radio
-        // Gamma: name="response-accurate", id="rca-inaccurate"
         if (name === 'response-accurate') return true;
         if (id.startsWith('rca-')) return true;
 
-        // FALLBACK — check parent form-section label text
-        // for both beta and gamma compatibility
         const formSection = radio.closest('.form-section, [class*="form"]');
         if (formSection) {
             const sectionText = formSection.textContent.toLowerCase();
@@ -638,7 +762,6 @@
             if (sectionText.includes('response content accurate')) return true;
         }
 
-        // FALLBACK — check associated label text
         const label = radio.id
             ? document.querySelector(`label[for="${radio.id}"]`)
             : radio.closest('label');
@@ -650,6 +773,60 @@
                 if (sectionText.includes('context switch')) return false;
                 if (sectionText.includes('conversation context')) return false;
                 if (sectionText.includes('response content accurate')) return true;
+            }
+        }
+
+        // AWSUI fallback — aria-labelledby on the radiogroup (abc-mlops and similar)
+        const radioGroup = radio.closest('[role="radiogroup"]');
+        if (radioGroup) {
+            const labelId = radioGroup.getAttribute('aria-labelledby');
+            if (labelId) {
+                const labelEl = document.getElementById(labelId);
+                if (labelEl) {
+                    const t = labelEl.textContent.trim().toLowerCase();
+                    if (t.includes('tool invoked'))          return false;
+                    if (t.includes('context switch'))        return false;
+                    if (t.includes('conversation context'))  return false;
+                    if (t.includes('response'))              return true;
+                }
+            }
+            // Also check any visible text label above the group
+            const groupText = radioGroup.closest('[data-analytics-field-label], [data-field-label], [data-testid]');
+            if (groupText) {
+                const attr = (groupText.getAttribute('data-analytics-field-label') || '').toLowerCase();
+                if (attr.includes('tool'))     return false;
+                if (attr.includes('response')) return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Detect tool-accurate inaccurate radio — Added in v4.0
+    function isToolAccurateRadio(radio) {
+        if (!radio) return false;
+        const val  = (radio.value || '').trim().toLowerCase();
+        const name = (radio.name  || '').toLowerCase();
+        const id   = (radio.id    || '').toLowerCase();
+        if (val !== 'inaccurate') return false;
+        if (name === 'tool-accurate') return true;
+        if (id.startsWith('ta-')) return true;
+        const formSection = radio.closest('.form-section, [class*="form"]');
+        if (formSection) {
+            const st = formSection.textContent.toLowerCase();
+            if (st.includes('tool invoked') && !st.includes('response content')) return true;
+        }
+
+        // AWSUI fallback — aria-labelledby on the radiogroup (abc-mlops and similar)
+        const radioGroup = radio.closest('[role="radiogroup"]');
+        if (radioGroup) {
+            const labelId = radioGroup.getAttribute('aria-labelledby');
+            if (labelId) {
+                const labelEl = document.getElementById(labelId);
+                if (labelEl) {
+                    const t = labelEl.textContent.trim().toLowerCase();
+                    if (t.includes('tool invoked') || t.includes('tool accurate')) return true;
+                }
             }
         }
 
@@ -666,12 +843,8 @@
     function isInaccurateTarget(target) {
         if (!target) return false;
 
-        // Check 1 — direct radio click
-        if (target.type === 'radio') {
-            return isResponseAccurateRadio(target);
-        }
+        if (target.type === 'radio') return isResponseAccurateRadio(target);
 
-        // Check 2 — click landed on label with for attribute
         if (target.tagName === 'LABEL') {
             const forId = target.htmlFor;
             if (forId) {
@@ -682,7 +855,6 @@
             if (inner) return isResponseAccurateRadio(inner);
         }
 
-        // Check 3 — click landed on span or div inside label
         const parentLabel = target.closest('label');
         if (parentLabel) {
             if (parentLabel.htmlFor) {
@@ -693,7 +865,6 @@
             if (inner) return isResponseAccurateRadio(inner);
         }
 
-        // Check 4 — click landed on radio-option div
         const radioDiv = target.closest(
             '.radio-option, .radio-group, [class*="radio"], [class*="Radio"]'
         );
@@ -705,16 +876,50 @@
         return false;
     }
 
+    // Detect tool inaccurate target — Added in v4.0
+    function isToolInaccurateTarget(target) {
+        if (!target) return false;
+
+        if (target.type === 'radio') return isToolAccurateRadio(target);
+
+        if (target.tagName === 'LABEL') {
+            const forId = target.htmlFor;
+            if (forId) {
+                const radio = document.getElementById(forId);
+                if (radio) return isToolAccurateRadio(radio);
+            }
+            const inner = target.querySelector('input[type="radio"]');
+            if (inner) return isToolAccurateRadio(inner);
+        }
+
+        const parentLabel = target.closest('label');
+        if (parentLabel) {
+            if (parentLabel.htmlFor) {
+                const radio = document.getElementById(parentLabel.htmlFor);
+                if (radio) return isToolAccurateRadio(radio);
+            }
+            const inner = parentLabel.querySelector('input[type="radio"]');
+            if (inner) return isToolAccurateRadio(inner);
+        }
+
+        const radioDiv = target.closest(
+            '.radio-option, .radio-group, [class*="radio"], [class*="Radio"]'
+        );
+        if (radioDiv) {
+            const radio = radioDiv.querySelector('input[type="radio"]');
+            if (radio) return isToolAccurateRadio(radio);
+        }
+
+        return false;
+    }
+
     function tryOpen(source) {
         const now = Date.now();
         if (now - lastTriggerTime < DEBOUNCE_MS) {
             debugLog(`Debounced (${source})`);
             return;
         }
-        if (pickerBusy) {
-            debugLog('Picker busy — skipping');
-            return;
-        }
+        if (pickerBusy) { debugLog('Picker busy — skipping'); return; }
         lastTriggerTime = now;
         debugLog(`Opening picker (${source})`);
         badge.textContent = '🟠 Inaccurate selected';
@@ -722,25 +927,47 @@
         setTimeout(() => showPicker(), 350);
     }
 
+    // tryOpenTool — Added in v4.0
+    function tryOpenTool(source) {
+        const now = Date.now();
+        if (now - lastTriggerTime < DEBOUNCE_MS) {
+            debugLog(`Debounced tool (${source})`);
+            return;
+        }
+        if (pickerBusy) { debugLog('Picker busy — skipping tool'); return; }
+        lastTriggerTime = now;
+        debugLog(`Opening tool picker (${source})`);
+        badge.textContent = '🟠 Tool Inaccurate selected';
+        setTimeout(() => { badge.textContent = '🟠 SR Filler Active'; }, 3000);
+        setTimeout(() => showToolPicker(), 350);
+    }
+
+    // Click + change listeners — both pickers handled, v4.0
     document.addEventListener('click', function (e) {
         if (pickerBusy) return;
         if (picker.contains(e.target)) return;
+        if (toolPicker.contains(e.target)) return;
         if (isInaccurateTarget(e.target)) {
             debugLog(`Click: tag=${e.target.tagName} id="${e.target.id}" name="${e.target.name || ''}"`);
             tryOpen('click');
+        } else if (isToolInaccurateTarget(e.target)) {
+            debugLog(`Tool click: tag=${e.target.tagName} id="${e.target.id}"`);
+            tryOpenTool('click');
         }
     }, true);
 
-    // FIX — change listener now uses isInaccurateTarget
-    // for consistent filtering across both click and change
     document.addEventListener('change', function (e) {
         if (pickerBusy) return;
         if (picker.contains(e.target)) return;
+        if (toolPicker.contains(e.target)) return;
         const t = e.target;
         if (t.type === 'radio' && t.checked) {
             if (isInaccurateTarget(t)) {
                 debugLog(`Change: id="${t.id}" name="${t.name}" value="${t.value}"`);
                 tryOpen('change');
+            } else if (isToolInaccurateTarget(t)) {
+                debugLog(`Tool change: id="${t.id}" name="${t.name}"`);
+                tryOpenTool('change');
             }
         }
     }, true);
@@ -762,10 +989,8 @@
                 </div>
             </div>`;
         document.body.appendChild(el);
-        el.querySelector('.sr-confirm-yes').onclick = () => {
-            el.remove(); onConfirm();
-        };
-        el.querySelector('.sr-confirm-no').onclick = () => el.remove();
+        el.querySelector('.sr-confirm-yes').onclick = () => { el.remove(); onConfirm(); };
+        el.querySelector('.sr-confirm-no').onclick  = () => el.remove();
     }
 
     // ═══════════════════════════════════════════════
@@ -776,20 +1001,15 @@
         let html = `
             <div class="sr-header">
                 <h3>📋 Expected Response</h3>
-                <div class="sr-step-label">
-                    Step 1 — Select a Response Category
-                </div>
+                <div class="sr-step-label">Step 1 — Select a Response Category</div>
             </div>
             <div class="sr-body">
-                <input type="text" class="sr-search"
-                    placeholder="🔍 Search categories..." />`;
+                <input type="text" class="sr-search" placeholder="🔍 Search categories..." />`;
 
         Object.keys(RESPONSE_MAP).forEach(cat => {
             html += `
-                <div class="sr-opt-row"
-                    data-search="${escapeHtml(cat.toLowerCase())}">
-                    <button class="sr-opt sr-cat-opt"
-                        data-cat="${encodeURIComponent(cat)}">
+                <div class="sr-opt-row" data-search="${escapeHtml(cat.toLowerCase())}">
+                    <button class="sr-opt sr-cat-opt" data-cat="${encodeURIComponent(cat)}">
                         📁 ${escapeHtml(cat)}
                     </button>
                 </div>`;
@@ -816,8 +1036,7 @@
             searchBox.addEventListener('input', function () {
                 const q = this.value.toLowerCase();
                 picker.querySelectorAll('.sr-opt-row').forEach(row =>
-                    row.classList.toggle('sr-hide',
-                        !row.dataset.search.includes(q))
+                    row.classList.toggle('sr-hide', !row.dataset.search.includes(q))
                 );
             });
         }
@@ -832,9 +1051,7 @@
         if (hvaBtn) hvaBtn.addEventListener('click', () => renderHVAListStep());
 
         const customBtn = picker.querySelector('.sr-custom-cat-opt');
-        if (customBtn) customBtn.addEventListener('click', () =>
-            renderCustomResponseStep()
-        );
+        if (customBtn) customBtn.addEventListener('click', () => renderCustomResponseStep());
 
         const cancelBtn = picker.querySelector('.sr-cancel');
         if (cancelBtn) cancelBtn.addEventListener('click', hidePicker);
@@ -852,21 +1069,15 @@
         let html = `
             <div class="sr-header">
                 <h3>💊 HVA Related Pills</h3>
-                <div class="sr-step-label">
-                    Step 2 — Select an HVA
-                </div>
+                <div class="sr-step-label">Step 2 — Select an HVA</div>
             </div>
             <div class="sr-body">
-                <div class="sr-category-badge-hva">
-                    💊 HVA Related Pills
-                </div><br/>
-                <input type="text" class="sr-search"
-                    placeholder="🔍 Search HVAs..." />`;
+                <div class="sr-category-badge-hva">💊 HVA Related Pills</div><br/>
+                <input type="text" class="sr-search" placeholder="🔍 Search HVAs..." />`;
 
         hvaNames.forEach(hva => {
             html += `
-                <div class="sr-opt-row"
-                    data-search="${escapeHtml(hva.toLowerCase())}">
+                <div class="sr-opt-row" data-search="${escapeHtml(hva.toLowerCase())}">
                     <button class="sr-opt sr-opt-hva-name sr-hva-name-btn"
                         data-hva="${encodeURIComponent(hva)}">
                         🏷️ ${escapeHtml(hva)}
@@ -886,8 +1097,7 @@
             searchBox.addEventListener('input', function () {
                 const q = this.value.toLowerCase();
                 picker.querySelectorAll('.sr-opt-row').forEach(row =>
-                    row.classList.toggle('sr-hide',
-                        !row.dataset.search.includes(q))
+                    row.classList.toggle('sr-hide', !row.dataset.search.includes(q))
                 );
             });
         }
@@ -898,9 +1108,9 @@
             });
         });
 
-        const backBtn = picker.querySelector('.sr-back');
+        const backBtn   = picker.querySelector('.sr-back');
         const cancelBtn = picker.querySelector('.sr-cancel');
-        if (backBtn) backBtn.addEventListener('click', renderCategoryStep);
+        if (backBtn)   backBtn.addEventListener('click', renderCategoryStep);
         if (cancelBtn) cancelBtn.addEventListener('click', hidePicker);
 
         setTimeout(() => { if (searchBox) searchBox.focus(); }, 100);
@@ -911,7 +1121,7 @@
     // ═══════════════════════════════════════════════
 
     function renderHVAHeadingsStep(hvaName) {
-        const headings = HVA_PILLS_MAP[hvaName] || {};
+        const headings    = HVA_PILLS_MAP[hvaName] || {};
         const headingKeys = Object.keys(headings);
 
         if (headingKeys.length === 0) {
@@ -923,24 +1133,16 @@
         let html = `
             <div class="sr-header">
                 <h3>💊 HVA Related Pills</h3>
-                <div class="sr-step-label">
-                    Step 3 — Select a Heading
-                </div>
+                <div class="sr-step-label">Step 3 — Select a Heading</div>
             </div>
             <div class="sr-body">
-                <div class="sr-category-badge-hva">
-                    💊 HVA Related Pills
-                </div>
-                <div class="sr-hva-name-badge">
-                    🏷️ ${escapeHtml(hvaName)}
-                </div>
-                <input type="text" class="sr-search"
-                    placeholder="🔍 Search headings..." />`;
+                <div class="sr-category-badge-hva">💊 HVA Related Pills</div>
+                <div class="sr-hva-name-badge">🏷️ ${escapeHtml(hvaName)}</div>
+                <input type="text" class="sr-search" placeholder="🔍 Search headings..." />`;
 
         headingKeys.forEach(heading => {
             html += `
-                <div class="sr-opt-row"
-                    data-search="${escapeHtml(heading.toLowerCase())}">
+                <div class="sr-opt-row" data-search="${escapeHtml(heading.toLowerCase())}">
                     <button class="sr-opt sr-opt-pill sr-pill-opt"
                         data-val="${encodeURIComponent(heading)}">
                         📌 ${escapeHtml(heading)}
@@ -960,36 +1162,28 @@
             searchBox.addEventListener('input', function () {
                 const q = this.value.toLowerCase();
                 picker.querySelectorAll('.sr-opt-row').forEach(row =>
-                    row.classList.toggle('sr-hide',
-                        !row.dataset.search.includes(q))
+                    row.classList.toggle('sr-hide', !row.dataset.search.includes(q))
                 );
             });
         }
 
         picker.querySelectorAll('.sr-pill-opt').forEach(btn => {
             btn.addEventListener('click', function () {
-                const heading = decodeURIComponent(this.dataset.val);
+                const heading  = decodeURIComponent(this.dataset.val);
                 const response = headings[heading];
-                if (!response) {
-                    showToast('⚠️ No response found for this heading!');
-                    return;
-                }
+                if (!response) { showToast('⚠️ No response found for this heading!'); return; }
                 const textarea = findExpectedResponseField();
                 hidePicker();
                 setTimeout(() => {
-                    if (textarea) {
-                        smartFill(textarea, response);
-                        showToast('✅ Expected Response filled!');
-                    } else {
-                        alert('❌ Could not find Expected Response textarea!');
-                    }
+                    if (textarea) { smartFill(textarea, response); showToast('✅ Expected Response filled!'); }
+                    else { alert('❌ Could not find Expected Response textarea!'); }
                 }, 400);
             });
         });
 
-        const backBtn = picker.querySelector('.sr-back');
+        const backBtn   = picker.querySelector('.sr-back');
         const cancelBtn = picker.querySelector('.sr-cancel');
-        if (backBtn) backBtn.addEventListener('click', renderHVAListStep);
+        if (backBtn)   backBtn.addEventListener('click', renderHVAListStep);
         if (cancelBtn) cancelBtn.addEventListener('click', hidePicker);
 
         setTimeout(() => { if (searchBox) searchBox.focus(); }, 100);
@@ -1001,63 +1195,46 @@
 
     function renderResponseStep(category) {
         const builtIn = RESPONSE_MAP[category] || [];
-        const custom = getCustomOptions('resp_' + category);
+        const custom  = getCustomOptions('resp_' + category);
 
         let html = `
             <div class="sr-header">
                 <h3>📋 Expected Response</h3>
-                <div class="sr-step-label">
-                    Step 2 — Select a Response
-                </div>
+                <div class="sr-step-label">Step 2 — Select a Response</div>
             </div>
             <div class="sr-body">
-                <div class="sr-category-badge">
-                    📁 ${escapeHtml(category)}
-                </div><br/>
-                <input type="text" class="sr-search"
-                    placeholder="🔍 Search responses..." />`;
+                <div class="sr-category-badge">📁 ${escapeHtml(category)}</div><br/>
+                <input type="text" class="sr-search" placeholder="🔍 Search responses..." />`;
 
         builtIn.forEach(resp => {
             html += `
-                <div class="sr-opt-row"
-                    data-search="${escapeHtml(resp.toLowerCase())}">
-                    <button class="sr-opt sr-resp-opt"
-                        data-val="${encodeURIComponent(resp)}">
+                <div class="sr-opt-row" data-search="${escapeHtml(resp.toLowerCase())}">
+                    <button class="sr-opt sr-resp-opt" data-val="${encodeURIComponent(resp)}">
                         ${escapeHtml(resp)}
                     </button>
                 </div>`;
         });
 
         if (custom.length > 0) {
-            html += `
-                <div class="sr-custom-divider">⭐ Custom Responses</div>`;
+            html += `<div class="sr-custom-divider">⭐ Custom Responses</div>`;
             custom.forEach(resp => {
                 html += `
-                    <div class="sr-opt-row"
-                        data-search="${escapeHtml(resp.toLowerCase())}">
+                    <div class="sr-opt-row" data-search="${escapeHtml(resp.toLowerCase())}">
                         <button class="sr-opt sr-opt-custom sr-resp-opt"
-                            data-val="${encodeURIComponent(resp)}">
-                            ⭐ ${escapeHtml(resp)}
-                        </button>
+                            data-val="${encodeURIComponent(resp)}">⭐ ${escapeHtml(resp)}</button>
                         <button class="sr-del-btn sr-del-resp"
-                            data-del="${encodeURIComponent(resp)}"
-                            title="Delete">✕</button>
+                            data-del="${encodeURIComponent(resp)}" title="Delete">✕</button>
                     </div>`;
             });
         }
 
         html += `
             <div class="sr-custom-section">
-                <div class="sr-custom-label">
-                    ➕ Add Custom Response for "${escapeHtml(category)}"
-                </div>
+                <div class="sr-custom-label">➕ Add Custom Response for "${escapeHtml(category)}"</div>
                 <textarea class="sr-custom-input"
-                    placeholder="Type your custom expected response...">
-                </textarea>
+                    placeholder="Type your custom expected response..."></textarea>
                 <div class="sr-hint">Tip: Press Ctrl+Enter to quickly add</div>
-                <div class="sr-add-row">
-                    <button class="sr-add-btn">ADD</button>
-                </div>
+                <div class="sr-add-row"><button class="sr-add-btn">ADD</button></div>
             </div>
             <button class="sr-back">⬅ Back to Categories</button>
             <button class="sr-cancel">✖ Cancel</button>
@@ -1070,24 +1247,19 @@
             searchBox.addEventListener('input', function () {
                 const q = this.value.toLowerCase();
                 picker.querySelectorAll('.sr-opt-row').forEach(row =>
-                    row.classList.toggle('sr-hide',
-                        !row.dataset.search.includes(q))
+                    row.classList.toggle('sr-hide', !row.dataset.search.includes(q))
                 );
             });
         }
 
         picker.querySelectorAll('.sr-resp-opt').forEach(btn => {
             btn.addEventListener('click', function () {
-                const val = decodeURIComponent(this.dataset.val);
+                const val      = decodeURIComponent(this.dataset.val);
                 const textarea = findExpectedResponseField();
                 hidePicker();
                 setTimeout(() => {
-                    if (textarea) {
-                        smartFill(textarea, val);
-                        showToast('✅ Expected Response filled!');
-                    } else {
-                        alert('❌ Could not find Expected Response textarea!');
-                    }
+                    if (textarea) { smartFill(textarea, val); showToast('✅ Expected Response filled!'); }
+                    else { alert('❌ Could not find Expected Response textarea!'); }
                 }, 400);
             });
         });
@@ -1105,7 +1277,7 @@
         });
 
         const customInput = picker.querySelector('.sr-custom-input');
-        const addBtn = picker.querySelector('.sr-add-btn');
+        const addBtn      = picker.querySelector('.sr-add-btn');
 
         function addCustomResponse() {
             const v = customInput.value.trim();
@@ -1113,24 +1285,19 @@
             const all = [...builtIn, ...getCustomOptions('resp_' + category)];
             if (all.includes(v)) { showToast('⚠️ Response already exists!'); return; }
             const c = getCustomOptions('resp_' + category);
-            c.push(v);
-            saveCustomOptions('resp_' + category, c);
+            c.push(v); saveCustomOptions('resp_' + category, c);
             showToast('✅ Custom response added!');
             renderResponseStep(category);
         }
 
-        if (addBtn) addBtn.addEventListener('click', addCustomResponse);
-        if (customInput) {
-            customInput.addEventListener('keydown', e => {
-                if (e.key === 'Enter' && e.ctrlKey) {
-                    e.preventDefault(); addCustomResponse();
-                }
-            });
-        }
+        if (addBtn)      addBtn.addEventListener('click', addCustomResponse);
+        if (customInput) customInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); addCustomResponse(); }
+        });
 
-        const backBtn = picker.querySelector('.sr-back');
+        const backBtn   = picker.querySelector('.sr-back');
         const cancelBtn = picker.querySelector('.sr-cancel');
-        if (backBtn) backBtn.addEventListener('click', renderCategoryStep);
+        if (backBtn)   backBtn.addEventListener('click', renderCategoryStep);
         if (cancelBtn) cancelBtn.addEventListener('click', hidePicker);
 
         setTimeout(() => { if (searchBox) searchBox.focus(); }, 100);
@@ -1146,51 +1313,31 @@
         let html = `
             <div class="sr-header">
                 <h3>📋 Expected Response</h3>
-                <div class="sr-step-label">
-                    Step 2 — Write or Select a Custom Response
-                </div>
+                <div class="sr-step-label">Step 2 — Write or Select a Custom Response</div>
             </div>
             <div class="sr-body">
-                <div class="sr-category-badge-custom">
-                    ✏️ Custom Response
-                </div><br/>
-                <div class="sr-custom-label">
-                    ✍️ Type Your Custom Response
-                </div>
+                <div class="sr-category-badge-custom">✏️ Custom Response</div><br/>
+                <div class="sr-custom-label">✍️ Type Your Custom Response</div>
                 <textarea class="sr-custom-input" id="sr-new-custom-input"
-                    placeholder="Type the expected response you want to fill in...">
-                </textarea>
-                <div class="sr-hint">
-                    Tip: Ctrl+Enter to fill directly without saving
-                </div>
+                    placeholder="Type the expected response you want to fill in..."></textarea>
+                <div class="sr-hint">Tip: Ctrl+Enter to fill directly without saving</div>
                 <div class="sr-add-row">
-                    <button class="sr-add-btn" id="sr-fill-now-btn">
-                        ✅ Fill Now
-                    </button>
-                    <button class="sr-save-btn" id="sr-save-fill-btn">
-                        💾 Save &amp; Fill
-                    </button>
+                    <button class="sr-add-btn" id="sr-fill-now-btn">✅ Fill Now</button>
+                    <button class="sr-save-btn" id="sr-save-fill-btn">💾 Save &amp; Fill</button>
                 </div>`;
 
         if (savedCustoms.length > 0) {
             html += `
-                <div class="sr-custom-divider">
-                    💾 Previously Saved Custom Responses
-                </div>
+                <div class="sr-custom-divider">💾 Previously Saved Custom Responses</div>
                 <input type="text" class="sr-search" id="sr-saved-search"
-                    placeholder="🔍 Search saved responses..."
-                    style="margin-top:6px;" />`;
+                    placeholder="🔍 Search saved responses..." style="margin-top:6px;" />`;
             savedCustoms.forEach(resp => {
                 html += `
-                    <div class="sr-opt-row"
-                        data-search="${escapeHtml(resp.toLowerCase())}">
+                    <div class="sr-opt-row" data-search="${escapeHtml(resp.toLowerCase())}">
                         <button class="sr-opt sr-opt-custom sr-saved-resp-opt"
-                            data-val="${encodeURIComponent(resp)}">
-                            ⭐ ${escapeHtml(resp)}
-                        </button>
+                            data-val="${encodeURIComponent(resp)}">⭐ ${escapeHtml(resp)}</button>
                         <button class="sr-del-btn sr-del-saved"
-                            data-del="${encodeURIComponent(resp)}"
-                            title="Delete">✕</button>
+                            data-del="${encodeURIComponent(resp)}" title="Delete">✕</button>
                     </div>`;
             });
         }
@@ -1202,7 +1349,7 @@
 
         picker.innerHTML = html;
 
-        const newInput = picker.querySelector('#sr-new-custom-input');
+        const newInput   = picker.querySelector('#sr-new-custom-input');
         const fillNowBtn = picker.querySelector('#sr-fill-now-btn');
         const saveFillBtn = picker.querySelector('#sr-save-fill-btn');
 
@@ -1212,12 +1359,8 @@
             const textarea = findExpectedResponseField();
             hidePicker();
             setTimeout(() => {
-                if (textarea) {
-                    smartFill(textarea, v);
-                    showToast('✅ Expected Response filled!');
-                } else {
-                    alert('❌ Could not find Expected Response textarea!');
-                }
+                if (textarea) { smartFill(textarea, v); showToast('✅ Expected Response filled!'); }
+                else { alert('❌ Could not find Expected Response textarea!'); }
             }, 400);
         }
 
@@ -1225,56 +1368,39 @@
             const v = newInput ? newInput.value.trim() : '';
             if (!v) { showToast('⚠️ Please type a response first!'); return; }
             const existing = getCustomOptions(CUSTOM_CATEGORY_KEY);
-            if (!existing.includes(v)) {
-                existing.push(v);
-                saveCustomOptions(CUSTOM_CATEGORY_KEY, existing);
-            }
+            if (!existing.includes(v)) { existing.push(v); saveCustomOptions(CUSTOM_CATEGORY_KEY, existing); }
             const textarea = findExpectedResponseField();
             hidePicker();
             setTimeout(() => {
-                if (textarea) {
-                    smartFill(textarea, v);
-                    showToast('💾 Saved & filled!');
-                } else {
-                    alert('❌ Could not find Expected Response textarea!');
-                }
+                if (textarea) { smartFill(textarea, v); showToast('💾 Saved & filled!'); }
+                else { alert('❌ Could not find Expected Response textarea!'); }
             }, 400);
         }
 
-        if (fillNowBtn) fillNowBtn.addEventListener('click', fillNow);
+        if (fillNowBtn)  fillNowBtn.addEventListener('click', fillNow);
         if (saveFillBtn) saveFillBtn.addEventListener('click', saveFill);
-
-        if (newInput) {
-            newInput.addEventListener('keydown', e => {
-                if (e.key === 'Enter' && e.ctrlKey) {
-                    e.preventDefault(); fillNow();
-                }
-            });
-        }
+        if (newInput)    newInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); fillNow(); }
+        });
 
         const savedSearch = picker.querySelector('#sr-saved-search');
         if (savedSearch) {
             savedSearch.addEventListener('input', function () {
                 const q = this.value.toLowerCase();
                 picker.querySelectorAll('.sr-opt-row').forEach(row =>
-                    row.classList.toggle('sr-hide',
-                        !row.dataset.search.includes(q))
+                    row.classList.toggle('sr-hide', !row.dataset.search.includes(q))
                 );
             });
         }
 
         picker.querySelectorAll('.sr-saved-resp-opt').forEach(btn => {
             btn.addEventListener('click', function () {
-                const val = decodeURIComponent(this.dataset.val);
+                const val      = decodeURIComponent(this.dataset.val);
                 const textarea = findExpectedResponseField();
                 hidePicker();
                 setTimeout(() => {
-                    if (textarea) {
-                        smartFill(textarea, val);
-                        showToast('✅ Expected Response filled!');
-                    } else {
-                        alert('❌ Could not find Expected Response textarea!');
-                    }
+                    if (textarea) { smartFill(textarea, val); showToast('✅ Expected Response filled!'); }
+                    else { alert('❌ Could not find Expected Response textarea!'); }
                 }, 400);
             });
         });
@@ -1291,12 +1417,155 @@
             });
         });
 
-        const backBtn = picker.querySelector('.sr-back');
+        const backBtn   = picker.querySelector('.sr-back');
         const cancelBtn = picker.querySelector('.sr-cancel');
-        if (backBtn) backBtn.addEventListener('click', renderCategoryStep);
+        if (backBtn)   backBtn.addEventListener('click', renderCategoryStep);
         if (cancelBtn) cancelBtn.addEventListener('click', hidePicker);
 
         setTimeout(() => { if (newInput) newInput.focus(); }, 100);
+    }
+
+    // ═══════════════════════════════════════════════
+    // FIND EXPECTED TOOL FIELD — Added in v4.0
+    // ═══════════════════════════════════════════════
+
+    function findExpectedToolField() {
+        const sec = document.querySelector('#correct-tool-section');
+        if (sec) {
+            const inp = sec.querySelector(
+                'input[type="text"], input:not([type="radio"]):not([type="checkbox"])'
+            );
+            if (inp) return inp;
+        }
+        const els = document.querySelectorAll('label, span, p, div, legend');
+        for (const el of els) {
+            const txt = el.textContent.trim().toLowerCase();
+            if (txt.length > 100) continue;
+            if (txt.includes('expected tool') || txt.includes('tool invocation')) {
+                let p = el.parentElement;
+                for (let j = 0; j < 6; j++) {
+                    if (!p) break;
+                    const inp2 = p.querySelector('input[type="text"], input:not([type])');
+                    if (inp2) return inp2;
+                    p = p.parentElement;
+                }
+            }
+        }
+        return null;
+    }
+
+    // ═══════════════════════════════════════════════
+    // TOOL INVOCATION PICKER — Added in v4.0
+    // ═══════════════════════════════════════════════
+
+    function renderToolInvocationStep() {
+        const customTools = getCustomOptions(CUSTOM_TOOL_KEY);
+
+        let html = `
+            <div class="srt-header">
+                <h3>🔧 Expected Tool Invocation</h3>
+                <div class="srt-subtitle">SELECT THE CORRECT TOOL NAME TO FILL</div>
+            </div>
+            <div class="srt-body">
+                <div class="srt-badge">Tool Invoked Accurate — Inaccurate</div>`;
+
+        TOOL_INVOCATION_OPTIONS.forEach(opt => {
+            html += `
+                <button class="srt-opt srt-builtin-opt" data-val="${escapeHtml(opt)}">
+                    ${escapeHtml(opt)}
+                </button>`;
+        });
+
+        if (customTools.length > 0) {
+            html += `<div class="srt-divider">Saved Custom Tool Names</div>`;
+            customTools.forEach(tool => {
+                html += `
+                    <div class="srt-opt-row">
+                        <button class="srt-opt srt-opt-custom srt-custom-tool-opt"
+                            data-val="${escapeHtml(tool)}">${escapeHtml(tool)}</button>
+                        <button class="srt-del-btn srt-del-tool"
+                            data-del="${escapeHtml(tool)}" title="Delete">×</button>
+                    </div>`;
+            });
+        }
+
+        html += `
+            <div class="srt-custom-section">
+                <div class="srt-custom-label">Or enter a custom tool name:</div>
+                <input type="text" class="srt-custom-input" id="srt-custom-input"
+                    placeholder="e.g. search_amazon_orders" />
+                <div class="srt-btn-row">
+                    <button class="srt-add-btn" id="srt-fill-now-btn">✓ Fill Now</button>
+                    <button class="srt-add-btn srt-save-btn" id="srt-save-fill-btn">💾 Save &amp; Fill</button>
+                </div>
+            </div>
+            <button class="srt-cancel">✖ Cancel</button>
+            </div>`;
+
+        toolPicker.innerHTML = html;
+
+        const customInput = toolPicker.querySelector('#srt-custom-input');
+        const fnBtn       = toolPicker.querySelector('#srt-fill-now-btn');
+        const sfBtn       = toolPicker.querySelector('#srt-save-fill-btn');
+
+        toolPicker.querySelectorAll('.srt-builtin-opt, .srt-custom-tool-opt').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const val   = this.dataset.val;
+                const field = findExpectedToolField();
+                hidePicker();
+                setTimeout(() => {
+                    if (field) { smartFill(field, val); showToast('✅ Tool name filled!'); }
+                    else { alert('❌ Could not find expected tool invocation field!'); }
+                }, 400);
+            });
+        });
+
+        toolPicker.querySelectorAll('.srt-del-tool').forEach(btn => {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                const val = this.dataset.del;
+                showDeleteConfirm(val, () => {
+                    removeCustomOption(CUSTOM_TOOL_KEY, val);
+                    showToast('🗑️ Deleted custom tool');
+                    renderToolInvocationStep();
+                });
+            });
+        });
+
+        function fillNowTool() {
+            const v = customInput ? customInput.value.trim() : '';
+            if (!v) { showToast('⚠️ Please enter a tool name first!'); return; }
+            const field = findExpectedToolField();
+            hidePicker();
+            setTimeout(() => {
+                if (field) { smartFill(field, v); showToast('✅ Tool name filled!'); }
+                else { alert('❌ Could not find expected tool invocation field!'); }
+            }, 400);
+        }
+
+        function saveAndFillTool() {
+            const v = customInput ? customInput.value.trim() : '';
+            if (!v) { showToast('⚠️ Please enter a tool name first!'); return; }
+            const existing = getCustomOptions(CUSTOM_TOOL_KEY);
+            const field    = findExpectedToolField();
+            if (!existing.includes(v)) { existing.push(v); saveCustomOptions(CUSTOM_TOOL_KEY, existing); }
+            hidePicker();
+            setTimeout(() => {
+                if (field) { smartFill(field, v); showToast('💾 Saved & filled!'); }
+                else { alert('❌ Could not find expected tool invocation field!'); }
+            }, 400);
+        }
+
+        if (fnBtn) fnBtn.addEventListener('click', fillNowTool);
+        if (sfBtn) sfBtn.addEventListener('click', saveAndFillTool);
+        if (customInput) customInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); fillNowTool(); }
+        });
+
+        const cb = toolPicker.querySelector('.srt-cancel');
+        if (cb) cb.addEventListener('click', hidePicker);
+
+        setTimeout(() => { if (customInput) customInput.focus(); }, 100);
     }
 
     // ═══════════════════════════════════════════════
@@ -1307,9 +1576,7 @@
         const byPlaceholder = document.querySelector(
             'textarea[placeholder*="expected response" i]'
         );
-        if (byPlaceholder && byPlaceholder.offsetParent !== null) {
-            return byPlaceholder;
-        }
+        if (byPlaceholder && byPlaceholder.offsetParent !== null) return byPlaceholder;
 
         const allEls = document.querySelectorAll(
             'label, span, p, div, h3, h4, h5, h6, legend'
@@ -1330,13 +1597,10 @@
 
         const allTextareas = document.querySelectorAll('textarea');
         for (const ta of allTextareas) {
-            const ph = (ta.placeholder || '').toLowerCase();
+            const ph        = (ta.placeholder || '').toLowerCase();
             const isVisible = ta.offsetParent !== null;
-            if (isVisible && (
-                ph.includes('expected') ||
-                ph.includes('response') ||
-                ph.includes('bot')
-            )) return ta;
+            if (isVisible && (ph.includes('expected') || ph.includes('response') || ph.includes('bot')))
+                return ta;
         }
 
         return null;
@@ -1389,9 +1653,7 @@
     // ═══════════════════════════════════════════════
 
     document.addEventListener('keydown', (e) => {
-        if (e.ctrlKey && e.shiftKey && e.key === 'E') {
-            e.preventDefault(); showPicker();
-        }
+        if (e.ctrlKey && e.shiftKey && e.key === 'E') { e.preventDefault(); showPicker(); }
         if (e.key === 'Escape') hidePicker();
         if (e.ctrlKey && e.shiftKey && e.key === 'D') {
             e.preventDefault();
@@ -1400,6 +1662,6 @@
         }
     });
 
-    debugLog('SR Filler v3.5 loaded');
+    debugLog('SR Filler v4.0 loaded');
 
 })();

@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Static Response Expected Answer Auto-Fill
 // @namespace    http://tampermonkey.net/
-// @version      4.1
-// @description  HVA Pills picker + category picker + Tool Invocation picker
+// @version      4.3
+// @description  HVA Pills picker + category picker
 // @match        https://orbit-beta.beta.harmony.a2z.com/*
 // @match        https://orbit-gamma.beta.harmony.a2z.com/*
 // @match        https://abc-mlops.beta.harmony.a2z.com/*
@@ -129,13 +129,6 @@
     };
 
     const CUSTOM_CATEGORY_KEY = 'orbit_sr_v2_custom_responses';
-
-    // ═══════════════════════════════════════════════
-    // TOOL INVOCATION — Added in v4.0
-    // ═══════════════════════════════════════════════
-
-    const CUSTOM_TOOL_KEY         = 'v2_custom_tool_options';
-    const TOOL_INVOCATION_OPTIONS = ['search_amazon_business_knowledge_base', 'No'];
 
     // ═══════════════════════════════════════════════
     // HTML ESCAPE HELPER
@@ -506,157 +499,6 @@
     `);
 
     // ═══════════════════════════════════════════════
-    // TOOL PICKER STYLES — Added in v4.0
-    // ═══════════════════════════════════════════════
-
-    GM_addStyle(`
-
-        #sr-tool-picker {
-            position: fixed; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            background: #ffffff; border: none;
-            border-radius: 12px; padding: 0;
-            z-index: 99999; display: none;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.45);
-            min-width: 480px; max-width: 560px;
-            max-height: 85vh; overflow: hidden;
-            font-family: Arial, sans-serif;
-        }
-
-        #sr-tool-picker .srt-header {
-            background: #131921;
-            padding: 16px 20px 14px;
-            border-radius: 12px 12px 0 0;
-        }
-
-        #sr-tool-picker .srt-header h3 {
-            margin: 0 0 4px; font-size: 15px;
-            font-weight: bold; color: #FF9900; letter-spacing: 0.3px;
-        }
-
-        #sr-tool-picker .srt-subtitle {
-            font-size: 10px; color: #aaaaaa;
-            text-transform: uppercase; letter-spacing: 1.2px; margin: 0;
-        }
-
-        #sr-tool-picker .srt-body {
-            padding: 16px 20px 20px;
-            overflow-y: auto; max-height: calc(85vh - 72px);
-        }
-
-        #sr-tool-picker .srt-badge {
-            display: inline-block;
-            background: #131921; color: #FF9900;
-            padding: 4px 14px; border-radius: 20px;
-            font-size: 12px; margin-bottom: 14px;
-            font-weight: bold; letter-spacing: 0.3px;
-            border: 1px solid #FF9900;
-        }
-
-        #sr-tool-picker .srt-opt {
-            display: block; width: 100%;
-            padding: 11px 14px 11px 16px;
-            background: #f8f8f8;
-            border: 1px solid #e0e0e0;
-            border-left: 5px solid #FF9900;
-            border-radius: 6px; cursor: pointer;
-            text-align: left; font-size: 13px;
-            color: #131921; font-weight: 500;
-            margin-bottom: 8px; box-sizing: border-box;
-            transition: background 0.15s, color 0.15s;
-        }
-
-        #sr-tool-picker .srt-opt:hover {
-            background: #131921; color: #FF9900;
-            border-left-color: #FF9900; border-color: #131921;
-        }
-
-        #sr-tool-picker .srt-opt-row {
-            display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
-        }
-
-        #sr-tool-picker .srt-opt-row .srt-opt { margin-bottom: 0; flex: 1; }
-
-        #sr-tool-picker .srt-opt-custom {
-            background: #fff8ee;
-            border-left-color: #FF9900; border-color: #ffe0a0; color: #7a5000;
-        }
-
-        #sr-tool-picker .srt-opt-custom:hover {
-            background: #131921; color: #FF9900;
-            border-color: #131921; border-left-color: #FF9900;
-        }
-
-        #sr-tool-picker .srt-del-btn {
-            padding: 8px 10px; background: #cc0000;
-            color: #fff; border: none; border-radius: 6px;
-            cursor: pointer; font-size: 13px; font-weight: bold;
-            flex-shrink: 0; transition: background 0.15s;
-        }
-
-        #sr-tool-picker .srt-del-btn:hover { background: #990000; }
-
-        #sr-tool-picker .srt-divider {
-            font-size: 11px; color: #999999;
-            margin: 12px 0 8px; text-transform: uppercase;
-            letter-spacing: 1px;
-            border-top: 1px dashed #e0e0e0; padding-top: 10px;
-        }
-
-        #sr-tool-picker .srt-custom-section {
-            margin-top: 14px; padding-top: 14px; border-top: 1px dashed #dddddd;
-        }
-
-        #sr-tool-picker .srt-custom-label {
-            font-size: 12px; color: #FF9900; margin-bottom: 6px; font-weight: bold;
-        }
-
-        #sr-tool-picker .srt-custom-input {
-            width: 100%; padding: 9px 12px;
-            border: 1.5px solid #dddddd;
-            border-radius: 6px; font-size: 13px;
-            box-sizing: border-box;
-            font-family: Arial, sans-serif;
-            color: #131921; background: #fafafa;
-        }
-
-        #sr-tool-picker .srt-custom-input:focus {
-            outline: none; border-color: #FF9900; background: #fff;
-            box-shadow: 0 0 0 2px rgba(255,153,0,0.15);
-        }
-
-        #sr-tool-picker .srt-btn-row { display: flex; gap: 8px; margin-top: 8px; }
-
-        #sr-tool-picker .srt-add-btn {
-            flex: 1; padding: 9px 14px;
-            background: #FF9900; color: #131921;
-            border: none; border-radius: 6px;
-            cursor: pointer; font-size: 13px; font-weight: bold;
-            transition: background 0.15s;
-        }
-
-        #sr-tool-picker .srt-add-btn:hover { background: #e68a00; }
-
-        #sr-tool-picker .srt-save-btn {
-            background: #131921; color: #FF9900; border: 1.5px solid #FF9900;
-        }
-
-        #sr-tool-picker .srt-save-btn:hover { background: #FF9900; color: #131921; }
-
-        #sr-tool-picker .srt-cancel {
-            display: block; width: 100%;
-            padding: 10px 12px; margin-top: 12px;
-            background: #131921; color: #ffffff;
-            border: none; border-radius: 6px;
-            cursor: pointer; font-size: 13px; font-weight: bold;
-            box-sizing: border-box; transition: background 0.15s;
-        }
-
-        #sr-tool-picker .srt-cancel:hover { background: #000000; }
-
-    `);
-
-    // ═══════════════════════════════════════════════
     // UI ELEMENTS
     // ═══════════════════════════════════════════════
 
@@ -679,11 +521,6 @@
     const picker = document.createElement('div');
     picker.id = 'sr-picker';
     document.body.appendChild(picker);
-
-    // Tool picker — Added in v4.0
-    const toolPicker = document.createElement('div');
-    toolPicker.id = 'sr-tool-picker';
-    document.body.appendChild(toolPicker);
 
     // ═══════════════════════════════════════════════
     // DEBUG LOGGER
@@ -712,18 +549,9 @@
 
     // hidePicker now closes both pickers — modified in v4.0
     function hidePicker() {
-        overlay.style.display    = 'none';
-        picker.style.display     = 'none';
-        toolPicker.style.display = 'none';
-        setTimeout(() => { pickerBusy = false; }, 500);
-    }
-
-    // Show tool picker — Added in v4.0
-    function showToolPicker() {
-        pickerBusy = true;
-        overlay.style.display    = 'block';
-        toolPicker.style.display = 'block';
-        renderToolInvocationStep();
+        overlay.style.display = 'none';
+        picker.style.display  = 'none';
+        setTimeout(() => { pickerBusy = false; }, 2000);
     }
 
     // ═══════════════════════════════════════════════
@@ -802,37 +630,6 @@
         return false;
     }
 
-    // Detect tool-accurate inaccurate radio — Added in v4.0
-    function isToolAccurateRadio(radio) {
-        if (!radio) return false;
-        const val  = (radio.value || '').trim().toLowerCase();
-        const name = (radio.name  || '').toLowerCase();
-        const id   = (radio.id    || '').toLowerCase();
-        if (val !== 'inaccurate') return false;
-        if (name === 'tool-accurate') return true;
-        if (id.startsWith('ta-')) return true;
-        const formSection = radio.closest('.form-section, [class*="form"]');
-        if (formSection) {
-            const st = formSection.textContent.toLowerCase();
-            if (st.includes('tool invoked') && !st.includes('response content')) return true;
-        }
-
-        // AWSUI fallback — aria-labelledby on the radiogroup (abc-mlops and similar)
-        const radioGroup = radio.closest('[role="radiogroup"]');
-        if (radioGroup) {
-            const labelId = radioGroup.getAttribute('aria-labelledby');
-            if (labelId) {
-                const labelEl = document.getElementById(labelId);
-                if (labelEl) {
-                    const t = labelEl.textContent.trim().toLowerCase();
-                    if (t.includes('tool invoked') || t.includes('tool accurate')) return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
     // ═══════════════════════════════════════════════
     // EVENT DELEGATION
     // ═══════════════════════════════════════════════
@@ -876,43 +673,6 @@
         return false;
     }
 
-    // Detect tool inaccurate target — Added in v4.0
-    function isToolInaccurateTarget(target) {
-        if (!target) return false;
-
-        if (target.type === 'radio') return isToolAccurateRadio(target);
-
-        if (target.tagName === 'LABEL') {
-            const forId = target.htmlFor;
-            if (forId) {
-                const radio = document.getElementById(forId);
-                if (radio) return isToolAccurateRadio(radio);
-            }
-            const inner = target.querySelector('input[type="radio"]');
-            if (inner) return isToolAccurateRadio(inner);
-        }
-
-        const parentLabel = target.closest('label');
-        if (parentLabel) {
-            if (parentLabel.htmlFor) {
-                const radio = document.getElementById(parentLabel.htmlFor);
-                if (radio) return isToolAccurateRadio(radio);
-            }
-            const inner = parentLabel.querySelector('input[type="radio"]');
-            if (inner) return isToolAccurateRadio(inner);
-        }
-
-        const radioDiv = target.closest(
-            '.radio-option, .radio-group, [class*="radio"], [class*="Radio"]'
-        );
-        if (radioDiv) {
-            const radio = radioDiv.querySelector('input[type="radio"]');
-            if (radio) return isToolAccurateRadio(radio);
-        }
-
-        return false;
-    }
-
     function tryOpen(source) {
         const now = Date.now();
         if (now - lastTriggerTime < DEBOUNCE_MS) {
@@ -927,47 +687,23 @@
         setTimeout(() => showPicker(), 350);
     }
 
-    // tryOpenTool — Added in v4.0
-    function tryOpenTool(source) {
-        const now = Date.now();
-        if (now - lastTriggerTime < DEBOUNCE_MS) {
-            debugLog(`Debounced tool (${source})`);
-            return;
-        }
-        if (pickerBusy) { debugLog('Picker busy — skipping tool'); return; }
-        lastTriggerTime = now;
-        debugLog(`Opening tool picker (${source})`);
-        badge.textContent = '🟠 Tool Inaccurate selected';
-        setTimeout(() => { badge.textContent = '🟠 SR Filler Active'; }, 3000);
-        setTimeout(() => showToolPicker(), 350);
-    }
-
-    // Click + change listeners — both pickers handled, v4.0
     document.addEventListener('click', function (e) {
         if (pickerBusy) return;
         if (picker.contains(e.target)) return;
-        if (toolPicker.contains(e.target)) return;
         if (isInaccurateTarget(e.target)) {
             debugLog(`Click: tag=${e.target.tagName} id="${e.target.id}" name="${e.target.name || ''}"`);
             tryOpen('click');
-        } else if (isToolInaccurateTarget(e.target)) {
-            debugLog(`Tool click: tag=${e.target.tagName} id="${e.target.id}"`);
-            tryOpenTool('click');
         }
     }, true);
 
     document.addEventListener('change', function (e) {
         if (pickerBusy) return;
         if (picker.contains(e.target)) return;
-        if (toolPicker.contains(e.target)) return;
         const t = e.target;
         if (t.type === 'radio' && t.checked) {
             if (isInaccurateTarget(t)) {
                 debugLog(`Change: id="${t.id}" name="${t.name}" value="${t.value}"`);
                 tryOpen('change');
-            } else if (isToolInaccurateTarget(t)) {
-                debugLog(`Tool change: id="${t.id}" name="${t.name}"`);
-                tryOpenTool('change');
             }
         }
     }, true);
@@ -1175,7 +911,7 @@
                 const textarea = findExpectedResponseField();
                 hidePicker();
                 setTimeout(() => {
-                    if (textarea) { smartFill(textarea, response); showToast('✅ Expected Response filled!'); }
+                    if (textarea) { smartFill(textarea, response); showToast('✅ Expected Response filled!'); lastTriggerTime = Date.now(); }
                     else { alert('❌ Could not find Expected Response textarea!'); }
                 }, 400);
             });
@@ -1258,7 +994,7 @@
                 const textarea = findExpectedResponseField();
                 hidePicker();
                 setTimeout(() => {
-                    if (textarea) { smartFill(textarea, val); showToast('✅ Expected Response filled!'); }
+                    if (textarea) { smartFill(textarea, val); showToast('✅ Expected Response filled!'); lastTriggerTime = Date.now(); }
                     else { alert('❌ Could not find Expected Response textarea!'); }
                 }, 400);
             });
@@ -1359,7 +1095,7 @@
             const textarea = findExpectedResponseField();
             hidePicker();
             setTimeout(() => {
-                if (textarea) { smartFill(textarea, v); showToast('✅ Expected Response filled!'); }
+                if (textarea) { smartFill(textarea, v); showToast('✅ Expected Response filled!'); lastTriggerTime = Date.now(); }
                 else { alert('❌ Could not find Expected Response textarea!'); }
             }, 400);
         }
@@ -1372,7 +1108,7 @@
             const textarea = findExpectedResponseField();
             hidePicker();
             setTimeout(() => {
-                if (textarea) { smartFill(textarea, v); showToast('💾 Saved & filled!'); }
+                if (textarea) { smartFill(textarea, v); showToast('💾 Saved & filled!'); lastTriggerTime = Date.now(); }
                 else { alert('❌ Could not find Expected Response textarea!'); }
             }, 400);
         }
@@ -1399,7 +1135,7 @@
                 const textarea = findExpectedResponseField();
                 hidePicker();
                 setTimeout(() => {
-                    if (textarea) { smartFill(textarea, val); showToast('✅ Expected Response filled!'); }
+                    if (textarea) { smartFill(textarea, val); showToast('✅ Expected Response filled!'); lastTriggerTime = Date.now(); }
                     else { alert('❌ Could not find Expected Response textarea!'); }
                 }, 400);
             });
@@ -1423,149 +1159,6 @@
         if (cancelBtn) cancelBtn.addEventListener('click', hidePicker);
 
         setTimeout(() => { if (newInput) newInput.focus(); }, 100);
-    }
-
-    // ═══════════════════════════════════════════════
-    // FIND EXPECTED TOOL FIELD — Added in v4.0
-    // ═══════════════════════════════════════════════
-
-    function findExpectedToolField() {
-        const sec = document.querySelector('#correct-tool-section');
-        if (sec) {
-            const inp = sec.querySelector(
-                'input[type="text"], input:not([type="radio"]):not([type="checkbox"])'
-            );
-            if (inp) return inp;
-        }
-        const els = document.querySelectorAll('label, span, p, div, legend');
-        for (const el of els) {
-            const txt = el.textContent.trim().toLowerCase();
-            if (txt.length > 100) continue;
-            if (txt.includes('expected tool') || txt.includes('tool invocation')) {
-                let p = el.parentElement;
-                for (let j = 0; j < 6; j++) {
-                    if (!p) break;
-                    const inp2 = p.querySelector('input[type="text"], input:not([type])');
-                    if (inp2) return inp2;
-                    p = p.parentElement;
-                }
-            }
-        }
-        return null;
-    }
-
-    // ═══════════════════════════════════════════════
-    // TOOL INVOCATION PICKER — Added in v4.0
-    // ═══════════════════════════════════════════════
-
-    function renderToolInvocationStep() {
-        const customTools = getCustomOptions(CUSTOM_TOOL_KEY);
-
-        let html = `
-            <div class="srt-header">
-                <h3>🔧 Expected Tool Invocation</h3>
-                <div class="srt-subtitle">SELECT THE CORRECT TOOL NAME TO FILL</div>
-            </div>
-            <div class="srt-body">
-                <div class="srt-badge">Tool Invoked Accurate — Inaccurate</div>`;
-
-        TOOL_INVOCATION_OPTIONS.forEach(opt => {
-            html += `
-                <button class="srt-opt srt-builtin-opt" data-val="${escapeHtml(opt)}">
-                    ${escapeHtml(opt)}
-                </button>`;
-        });
-
-        if (customTools.length > 0) {
-            html += `<div class="srt-divider">Saved Custom Tool Names</div>`;
-            customTools.forEach(tool => {
-                html += `
-                    <div class="srt-opt-row">
-                        <button class="srt-opt srt-opt-custom srt-custom-tool-opt"
-                            data-val="${escapeHtml(tool)}">${escapeHtml(tool)}</button>
-                        <button class="srt-del-btn srt-del-tool"
-                            data-del="${escapeHtml(tool)}" title="Delete">×</button>
-                    </div>`;
-            });
-        }
-
-        html += `
-            <div class="srt-custom-section">
-                <div class="srt-custom-label">Or enter a custom tool name:</div>
-                <input type="text" class="srt-custom-input" id="srt-custom-input"
-                    placeholder="e.g. search_amazon_orders" />
-                <div class="srt-btn-row">
-                    <button class="srt-add-btn" id="srt-fill-now-btn">✓ Fill Now</button>
-                    <button class="srt-add-btn srt-save-btn" id="srt-save-fill-btn">💾 Save &amp; Fill</button>
-                </div>
-            </div>
-            <button class="srt-cancel">✖ Cancel</button>
-            </div>`;
-
-        toolPicker.innerHTML = html;
-
-        const customInput = toolPicker.querySelector('#srt-custom-input');
-        const fnBtn       = toolPicker.querySelector('#srt-fill-now-btn');
-        const sfBtn       = toolPicker.querySelector('#srt-save-fill-btn');
-
-        toolPicker.querySelectorAll('.srt-builtin-opt, .srt-custom-tool-opt').forEach(btn => {
-            btn.addEventListener('click', function () {
-                const val   = this.dataset.val;
-                const field = findExpectedToolField();
-                hidePicker();
-                setTimeout(() => {
-                    if (field) { smartFill(field, val); showToast('✅ Tool name filled!'); }
-                    else { alert('❌ Could not find expected tool invocation field!'); }
-                }, 400);
-            });
-        });
-
-        toolPicker.querySelectorAll('.srt-del-tool').forEach(btn => {
-            btn.addEventListener('click', function (e) {
-                e.stopPropagation();
-                const val = this.dataset.del;
-                showDeleteConfirm(val, () => {
-                    removeCustomOption(CUSTOM_TOOL_KEY, val);
-                    showToast('🗑️ Deleted custom tool');
-                    renderToolInvocationStep();
-                });
-            });
-        });
-
-        function fillNowTool() {
-            const v = customInput ? customInput.value.trim() : '';
-            if (!v) { showToast('⚠️ Please enter a tool name first!'); return; }
-            const field = findExpectedToolField();
-            hidePicker();
-            setTimeout(() => {
-                if (field) { smartFill(field, v); showToast('✅ Tool name filled!'); }
-                else { alert('❌ Could not find expected tool invocation field!'); }
-            }, 400);
-        }
-
-        function saveAndFillTool() {
-            const v = customInput ? customInput.value.trim() : '';
-            if (!v) { showToast('⚠️ Please enter a tool name first!'); return; }
-            const existing = getCustomOptions(CUSTOM_TOOL_KEY);
-            const field    = findExpectedToolField();
-            if (!existing.includes(v)) { existing.push(v); saveCustomOptions(CUSTOM_TOOL_KEY, existing); }
-            hidePicker();
-            setTimeout(() => {
-                if (field) { smartFill(field, v); showToast('💾 Saved & filled!'); }
-                else { alert('❌ Could not find expected tool invocation field!'); }
-            }, 400);
-        }
-
-        if (fnBtn) fnBtn.addEventListener('click', fillNowTool);
-        if (sfBtn) sfBtn.addEventListener('click', saveAndFillTool);
-        if (customInput) customInput.addEventListener('keydown', e => {
-            if (e.key === 'Enter') { e.preventDefault(); fillNowTool(); }
-        });
-
-        const cb = toolPicker.querySelector('.srt-cancel');
-        if (cb) cb.addEventListener('click', hidePicker);
-
-        setTimeout(() => { if (customInput) customInput.focus(); }, 100);
     }
 
     // ═══════════════════════════════════════════════
@@ -1662,6 +1255,6 @@
         }
     });
 
-    debugLog('SR Filler v4.0 loaded');
+    debugLog('SR Filler v4.3 loaded');
 
 })();

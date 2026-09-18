@@ -1,13 +1,15 @@
 // ==UserScript==
 // @name         Static Response Expected Answer Auto-Fill
 // @namespace    http://tampermonkey.net/
-// @version      4.3
-// @description  HVA Pills picker + category picker
+// @version      4.6
+// @description  HVA Pills picker + category picker — new Static Response set + per-category icons
 // @match        https://orbit-beta.beta.harmony.a2z.com/*
 // @match        https://orbit-gamma.beta.harmony.a2z.com/*
 // @match        https://abc-mlops.beta.harmony.a2z.com/*
 // @run-at       document-idle
 // @grant        GM_addStyle
+// @grant        GM_getValue
+// @grant        GM_setValue
 // ==/UserScript==
 
 (function () {
@@ -18,44 +20,96 @@
     // ═══════════════════════════════════════════════
 
     const RESPONSE_MAP = {
-        'Outside Knowledge Base': [
-            "I'm sorry, but I couldn't find a specific answer to your question. For best assistance, I'd like to connect you with our customer service team. They'll be able to help you more directly. Is that okay?",
-            "I'm sorry, the information about 'TOPIC' is not available in my knowledge base. I'd be happy to connect you with a customer service representative who can assist you further with this query.",
-            "I can't find information about this in my current resources. Please contact Amazon Business Customer Service for assistance."
-        ],
-        'Understanding Customer Question': [
-            "I'm not sure what you're looking for — could you please let me know what Amazon Business help you need?",
-            "Could you please clarify what specific help you need related to Amazon Business features? Are you asking about 'TOPIC' (e.g., Pay by Invoice) or something else?",
-            "I'm having trouble understanding your question — could you please clarify what specific Amazon Business help you need?",
-            "Could you please rephrase your question so I can better assist you with your Amazon Business needs?"
-        ],
         'Greeting': [
             "Hi there. How can I help you?"
+        ],
+        'Engaging Customer - Clarity/Information': [
+            "I'm not sure what you're looking for — could you please let me know what Amazon Business help you need?",
+            "Could you please clarify what specific help you need related to Amazon Business features? Are you asking about 'TOPIC' (e.g., Pay by Invoice) or something else?",
+            "I'm sorry, I'm not quite sure I understand what you're asking. Could you please rephrase your question so I can better assist you with your Amazon Business needs?",
+            "I'm having trouble understanding your question — could you please clarify what specific Amazon Business help you need?",
+            "Could you please rephrase your question so I can better assist you with your Amazon Business needs?",
+            "I'm here to help with your Amazon Business needs. What can I look up for you?"
+        ],
+        'Engaging Customer - Waiting/Acknowledging': [
+            "Sure, take your time. Let me know what you find.",
+            "No problem. I'm here when you're ready."
+        ],
+        'Customer Service': [
+            "Looking for more assistance? For faster support, start with our help pages.",
+            "I can't find information about this in my current resources. Looking for more assistance? For faster support, start with our help pages.",
+            "For help, go to [customer support](https://www.amazon.com/hz/contact-us/foresight/hubgateway) Anything else I can help with?",
+            "For help, go to [customer support](https://www.amazon.com/gp/help/customer/display.html?nodeId=G202119400) Anything else I can help with?"
         ],
         'Conclude Conversation': [
             "Thanks for reaching out. Feel free to contact us anytime if you need further assistance with Amazon Business!",
             "Have a great day, and we're here whenever you need help!"
         ],
-        'Route to Customer Service (CS) and (CSAI)': [
-            "Looking for more assistance? For faster support, start with our help pages."
-        ],
         'Out of Scope': [
-            "I'm still learning, and right now my expertise is focused on Amazon Business. Can I answer any questions about this topic?"
+            "I'm still learning, and right now my expertise is focused on Amazon Business. Can I answer any questions about this topic?",
+            "That's outside what I can help with. I'm here to assist with your Amazon Business account—orders, approvals, tax exemptions, spend management, and more."
+        ],
+        'Out of Scope - CS': [
+            "That's outside what I can help with. Please contact Amazon Business Customer Service for assistance.",
+            "That's outside what I can help with. For help, go to [customer support](https://www.amazon.com/hz/contact-us/foresight/hubgateway) Anything else I can help with?",
+            "I appreciate you reaching out, but that's outside what I can help with. I'm here to assist with Amazon Business account features like orders, spending controls, tax exemptions, approvals, and procurement. For billing issues with your personal Amazon account or subscriptions, please go to customer support. Any Amazon Business questions I can help with?"
+        ],
+        'Tool Out of Scope': [
+            "I don't have the ability to access or log into your account directly. I can only provide information and guidance. Is there a specific issue with your Prime Business account I can help you troubleshoot?"
+        ],
+        'Tool Out of Scope - CS': [
+            "I don't have the ability/tool to access or log into your account directly. I can only provide information and guidance. Please contact Amazon Business Customer Service for assistance.",
+            "I don't have the ability/tool to access or log into your account directly. For help, go to [customer support](https://www.amazon.com/hz/contact-us/foresight/hubgateway) Anything else I can help with?"
+        ],
+        'Outside AB Knowledge Base': [
+            "I'm sorry, but I couldn't find a specific answer to your question. For best assistance, I'd like to connect you with our customer service team. They'll be able to help you more directly. Is that okay?",
+            "I'm sorry, the information about 'TOPIC' is not available in my knowledge base. I'd be happy to connect you with a customer service representative who can assist you further with this query.",
+            "I can't find information about this in my current resources. Please contact Amazon Business Customer Service for assistance."
         ],
         'Trigger Guardrail': [
             "I apologize, but I'm not able to respond to that request. Could you please rephrase your question or ask about something else? I'm here to help with Amazon Business-related topics."
         ],
-        'General Amazon Business Support': [
-            "I'm sorry, but I couldn't find a specific answer to your question. For best assistance, I'd like to connect you with our customer service team. They'll be able to help you more directly. Is that okay?"
+        'Directed to Sales Team': [
+            "For assistance please reach our sales team via contact sales. What else can I help with?"
         ],
-        'Language Guardrails': [
+        'Directed to Both CS and Sales Team': [
+            "For assistance please contact Amazon Business Customer Service available 24/7 via customer support or reach our sales team via contact sales. What else can I help with?"
+        ],
+        'Language Guardrail': [
             "I notice you're writing in another language. Currently I'm only able to chat in English. Ask again in English?"
+        ],
+        'Direct product Query': [
+            "Could you please clarify what specific help you need with Amazon Business? Are you looking for a particular product or service?",
+            "I need clarification. Are you asking about:\n- **Searching for Dove products** to purchase\n- **An order** with Dove items\n- Order status or tracking\nWhat would help you most?"
         ]
     };
 
     // ═══════════════════════════════════════════════
+    // CATEGORY ICONS — one distinct icon per response category (falls
+    // back to a plain folder for anything not listed, e.g. custom cats)
+    // ═══════════════════════════════════════════════
+
+    const CATEGORY_ICONS = {
+        'Greeting': '👋',
+        'Engaging Customer - Clarity/Information': '🔍',
+        'Engaging Customer - Waiting/Acknowledging': '⏳',
+        'Customer Service': '🎧',
+        'Conclude Conversation': '✅',
+        'Out of Scope': '🚫',
+        'Out of Scope - CS': '🚫',
+        'Tool Out of Scope': '🛠️',
+        'Tool Out of Scope - CS': '🛠️',
+        'Outside AB Knowledge Base': '📚',
+        'Trigger Guardrail': '🛡️',
+        'Directed to Sales Team': '💼',
+        'Directed to Both CS and Sales Team': '🤝',
+        'Language Guardrail': '🌐',
+        'Direct product Query': '🛍️'
+    };
+
+
+    // ═══════════════════════════════════════════════
     // HVA PILLS MAP
-    // Structure: HVA Name → { Heading → Response }
     // ═══════════════════════════════════════════════
 
     const HVA_PILLS_MAP = {
@@ -128,7 +182,13 @@
 
     };
 
-    const CUSTOM_CATEGORY_KEY = 'orbit_sr_v2_custom_responses';
+    // ═══════════════════════════════════════════════
+    // CUSTOM CATEGORY KEY
+    // Storage functions add 'orbit_sr_' prefix automatically, so the actual
+    // GM key becomes 'orbit_sr_v2_custom_responses' (no double-prefix).
+    // ═══════════════════════════════════════════════
+
+    const CUSTOM_CATEGORY_KEY = 'v2_custom_responses';
 
     // ═══════════════════════════════════════════════
     // HTML ESCAPE HELPER
@@ -144,19 +204,55 @@
     }
 
     // ═══════════════════════════════════════════════
-    // STORAGE HELPERS
+    // STORAGE HELPERS — GM_setValue / GM_getValue
+    //
+    // Switched from localStorage (per-domain, cleared by browser) to
+    // Tampermonkey's own GM storage, which is per-script and survives
+    // browser "Clear site data". Also shared across all three matched
+    // domains so saves on orbit-beta are visible on orbit-gamma too.
+    //
+    // Migration: on first run, any data already in localStorage is copied
+    // to GM storage automatically so nothing is lost. The double-prefix bug
+    // (CUSTOM_CATEGORY_KEY previously included 'orbit_sr_' itself) is also
+    // corrected during migration.
     // ═══════════════════════════════════════════════
+
+    // Per-domain flag so each domain's localStorage is migrated independently
+    const MIGRATED_FLAG = 'orbit_sr_gm_migrated_v1_' + location.hostname.replace(/\./g, '_');
+
+    function migrateFromLocalStorage() {
+        if (GM_getValue(MIGRATED_FLAG, false)) return;
+        try {
+            for (let i = 0; i < localStorage.length; i++) {
+                const lsKey = localStorage.key(i);
+                if (!lsKey || !lsKey.startsWith('orbit_sr_')) continue;
+                try {
+                    const raw = localStorage.getItem(lsKey);
+                    if (!raw) continue;
+                    const parsed = JSON.parse(raw);
+                    // Fix double-prefix that existed on CUSTOM_CATEGORY_KEY:
+                    // 'orbit_sr_orbit_sr_v2_custom_responses' -> 'orbit_sr_v2_custom_responses'
+                    const gmKey = lsKey.replace(/^orbit_sr_orbit_sr_/, 'orbit_sr_');
+                    if (GM_getValue(gmKey, null) === null) {
+                        GM_setValue(gmKey, parsed);
+                        debugLog('Migrated: ' + lsKey + ' -> ' + gmKey);
+                    }
+                } catch (e) { /* skip malformed entries */ }
+            }
+        } catch (e) { /* localStorage unavailable */ }
+        GM_setValue(MIGRATED_FLAG, true);
+    }
 
     function getCustomOptions(key) {
         try {
-            const stored = localStorage.getItem('orbit_sr_' + key);
-            return stored ? JSON.parse(stored) : [];
+            const stored = GM_getValue('orbit_sr_' + key, null);
+            return Array.isArray(stored) ? stored : [];
         } catch (e) { return []; }
     }
 
     function saveCustomOptions(key, options) {
         try {
-            localStorage.setItem('orbit_sr_' + key, JSON.stringify(options));
+            GM_setValue('orbit_sr_' + key, options);
         } catch (e) {}
     }
 
@@ -167,7 +263,7 @@
     }
 
     // ═══════════════════════════════════════════════
-    // STYLES — Amazon Dark Theme  (v3.5 unchanged)
+    // STYLES — Amazon Dark Theme
     // ═══════════════════════════════════════════════
 
     GM_addStyle(`
@@ -547,7 +643,6 @@
         renderCategoryStep();
     }
 
-    // hidePicker now closes both pickers — modified in v4.0
     function hidePicker() {
         overlay.style.display = 'none';
         picker.style.display  = 'none';
@@ -555,7 +650,7 @@
     }
 
     // ═══════════════════════════════════════════════
-    // RADIO DETECTION — v3.5 unchanged
+    // RADIO DETECTION
     // ═══════════════════════════════════════════════
 
     function isResponseAccurateRadio(radio) {
@@ -604,7 +699,7 @@
             }
         }
 
-        // AWSUI fallback — aria-labelledby on the radiogroup (abc-mlops and similar)
+        // AWSUI fallback — aria-labelledby on the radiogroup
         const radioGroup = radio.closest('[role="radiogroup"]');
         if (radioGroup) {
             const labelId = radioGroup.getAttribute('aria-labelledby');
@@ -615,10 +710,13 @@
                     if (t.includes('tool invoked'))          return false;
                     if (t.includes('context switch'))        return false;
                     if (t.includes('conversation context'))  return false;
-                    if (t.includes('response'))              return true;
+                    // Require the label to be an evaluation-style field, not any
+                    // arbitrary label that merely contains the word "response"
+                    if (t.includes('response content'))      return true;
+                    if (t.includes('response accur'))        return true;
+                    if (t === 'response')                    return true;
                 }
             }
-            // Also check any visible text label above the group
             const groupText = radioGroup.closest('[data-analytics-field-label], [data-field-label], [data-testid]');
             if (groupText) {
                 const attr = (groupText.getAttribute('data-analytics-field-label') || '').toLowerCase();
@@ -725,8 +823,23 @@
                 </div>
             </div>`;
         document.body.appendChild(el);
-        el.querySelector('.sr-confirm-yes').onclick = () => { el.remove(); onConfirm(); };
-        el.querySelector('.sr-confirm-no').onclick  = () => el.remove();
+
+        // Remove dialog and deregister key handler
+        function dismiss() {
+            el.remove();
+            document.removeEventListener('keydown', onKey, true);
+        }
+        // Escape closes dialog only — capture phase prevents main keydown from
+        // also firing hidePicker() via the bubble-phase listener below
+        function onKey(e) {
+            if (e.key === 'Escape') { e.stopPropagation(); dismiss(); }
+        }
+        document.addEventListener('keydown', onKey, true);
+
+        el.querySelector('.sr-confirm-yes').onclick = () => { dismiss(); onConfirm(); };
+        el.querySelector('.sr-confirm-no').onclick  = dismiss;
+        // Click on the dark backdrop (not the white box) also dismisses
+        el.addEventListener('click', (e) => { if (e.target === el) dismiss(); });
     }
 
     // ═══════════════════════════════════════════════
@@ -746,7 +859,7 @@
             html += `
                 <div class="sr-opt-row" data-search="${escapeHtml(cat.toLowerCase())}">
                     <button class="sr-opt sr-cat-opt" data-cat="${encodeURIComponent(cat)}">
-                        📁 ${escapeHtml(cat)}
+                        ${CATEGORY_ICONS[cat] || '📁'} ${escapeHtml(cat)}
                     </button>
                 </div>`;
         });
@@ -939,7 +1052,7 @@
                 <div class="sr-step-label">Step 2 — Select a Response</div>
             </div>
             <div class="sr-body">
-                <div class="sr-category-badge">📁 ${escapeHtml(category)}</div><br/>
+                <div class="sr-category-badge">${CATEGORY_ICONS[category] || '📁'} ${escapeHtml(category)}</div><br/>
                 <input type="text" class="sr-search" placeholder="🔍 Search responses..." />`;
 
         builtIn.forEach(resp => {
@@ -1018,9 +1131,10 @@
         function addCustomResponse() {
             const v = customInput.value.trim();
             if (!v) { showToast('⚠️ Please type a response first!'); return; }
-            const all = [...builtIn, ...getCustomOptions('resp_' + category)];
+            // Single read — reuse c for both the duplicate check and the save
+            const c   = getCustomOptions('resp_' + category);
+            const all = [...builtIn, ...c];
             if (all.includes(v)) { showToast('⚠️ Response already exists!'); return; }
-            const c = getCustomOptions('resp_' + category);
             c.push(v); saveCustomOptions('resp_' + category, c);
             showToast('✅ Custom response added!');
             renderResponseStep(category);
@@ -1085,8 +1199,8 @@
 
         picker.innerHTML = html;
 
-        const newInput   = picker.querySelector('#sr-new-custom-input');
-        const fillNowBtn = picker.querySelector('#sr-fill-now-btn');
+        const newInput    = picker.querySelector('#sr-new-custom-input');
+        const fillNowBtn  = picker.querySelector('#sr-fill-now-btn');
         const saveFillBtn = picker.querySelector('#sr-save-fill-btn');
 
         function fillNow() {
@@ -1104,7 +1218,10 @@
             const v = newInput ? newInput.value.trim() : '';
             if (!v) { showToast('⚠️ Please type a response first!'); return; }
             const existing = getCustomOptions(CUSTOM_CATEGORY_KEY);
-            if (!existing.includes(v)) { existing.push(v); saveCustomOptions(CUSTOM_CATEGORY_KEY, existing); }
+            if (!existing.includes(v)) {
+                existing.push(v);
+                saveCustomOptions(CUSTOM_CATEGORY_KEY, existing);
+            }
             const textarea = findExpectedResponseField();
             hidePicker();
             setTimeout(() => {
@@ -1176,15 +1293,23 @@
         );
         for (const el of allEls) {
             const text = el.textContent.trim().toLowerCase();
-            if (text.length > 100) continue;
-            if (text.includes('expected response')) {
-                let parent = el.parentElement;
-                for (let i = 0; i < 6; i++) {
-                    if (!parent) break;
-                    const ta = parent.querySelector('textarea');
-                    if (ta && ta.offsetParent !== null) return ta;
-                    parent = parent.parentElement;
-                }
+            if (text.length > 100 || !text.includes('expected response')) continue;
+
+            // 1. Check same-level siblings first — most precise, avoids grabbing
+            //    a distant textarea from a different section of the form
+            for (let sib = el.nextElementSibling; sib; sib = sib.nextElementSibling) {
+                if (sib.tagName === 'TEXTAREA' && sib.offsetParent !== null) return sib;
+                const t = sib.querySelector('textarea');
+                if (t && t.offsetParent !== null) return t;
+            }
+
+            // 2. Walk up parent containers as fallback (unchanged from v4.4)
+            let parent = el.parentElement;
+            for (let i = 0; i < 6; i++) {
+                if (!parent) break;
+                const ta = parent.querySelector('textarea');
+                if (ta && ta.offsetParent !== null) return ta;
+                parent = parent.parentElement;
             }
         }
 
@@ -1255,6 +1380,11 @@
         }
     });
 
-    debugLog('SR Filler v4.3 loaded');
+    // ═══════════════════════════════════════════════
+    // INIT — migrate localStorage -> GM storage on first run
+    // ═══════════════════════════════════════════════
+
+    migrateFromLocalStorage();
+    debugLog('SR Filler v4.5 loaded (GM storage, production fixes)');
 
 })();

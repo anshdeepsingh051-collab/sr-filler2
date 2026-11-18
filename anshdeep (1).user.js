@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         Static Response Expected Answer Auto-Fill
 // @namespace    http://tampermonkey.net/
-// @version      4.6
+// @version      4.7
 // @description  HVA Pills picker + category picker — new Static Response set + per-category icons
 // @match        https://orbit-beta.beta.harmony.a2z.com/*
 // @match        https://orbit-gamma.beta.harmony.a2z.com/*
 // @match        https://abc-mlops.beta.harmony.a2z.com/*
+// @match        https://abc-mlops.harmony.a2z.com/*
+// @match        https://orbit-audit-hub.beta.harmony.a2z.com/*
 // @run-at       document-idle
 // @grant        GM_addStyle
 // @grant        GM_getValue
@@ -1385,6 +1387,6 @@
     // ═══════════════════════════════════════════════
 
     migrateFromLocalStorage();
-    debugLog('SR Filler v4.5 loaded (GM storage, production fixes)');
+    debugLog('SR Filler v4.7 loaded (GM storage, production fixes)');
 
 })();
